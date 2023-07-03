@@ -1,5 +1,6 @@
-# electric-xtdb-starter
+# a LEGO inventory app
 
+* forked from https://github.com/hyperfiddle/electric-xtdb-starter
 * Adapted from [xtdb-in-a-box](https://github.com/xtdb/xtdb-in-a-box)
 * Requires env var `XTDB_ENABLE_BYTEUTILS_SHA1=true`
 
