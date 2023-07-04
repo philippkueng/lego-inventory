@@ -5,7 +5,7 @@
 * Requires env var `XTDB_ENABLE_BYTEUTILS_SHA1=true`
 
 ```
-$ XTDB_ENABLE_BYTEUTILS_SHA1=true clj -A:dev -X user/main
+$ REBRICKABLE_API_KEY=the-key XTDB_ENABLE_BYTEUTILS_SHA1=true clj -A:dev -X user/main
 
 Starting Electric compiler and server...
 shadow-cljs - server version: 2.20.1 running at http://localhost:9630
@@ -16,3 +16,62 @@ shadow-cljs - nREPL server started on port 9001
 
 👉 App server available at http://0.0.0.0:8080
 ```
+
+## database entities
+
+```clojure
+{:type :set
+ :xt/id (uuid-random)
+ :rebrickable/id "6815-1"
+ :rebrickable/name "Hovertron"
+ :rebrickable/url "https://rebrickable.com/sets/6815-1/hovertron/#parts"
+ :rebrickable/release-year "1996"
+ :rebrickable/theme "Space>Explorations"
+ :rebrickable/image-url "https://cdn.rebrickable.com/media/thumbs/sets/6815-1/7046.jpg/1000x800p.jpg?1657462962.3916929"}
+
+{:type :part
+ :xt/id (uuid-random)
+ :lego/id "6020" ;; it's just the mold - there's still the color component which the id doesn't include
+ :rebrickable/id "6020"
+ :rebrickable/url "https://rebrickable.com/parts/6020/bar-7-x-3-with-double-clips-ladder/" ;; just entering the URL without the name at the end will also find it
+ :rebrickable/name "LEGO PART 6020 Bar 7 x 3 with Double Clips (Ladder)"
+ :rebrickable/image-url "https://cdn.rebrickable.com/media/thumbs/parts/photos/0/6020-0-e40f4f75-53d5-4d40-aecd-5580488fcd6b.jpg/250x250p.jpg?1658343735.7284539"
+ :brickowl/id "245401"
+ :brickowl/url "https://www.brickowl.com/catalog/lego-white-brick-1-x-2-x-5-with-stud-holder-2454"
+ :name "Brick 1 x 2 x 5 with Stud Holder (2454)"
+ :color "white"}
+
+{:type :set-contains-part
+ :xt/id (uuid-random)
+ :set-id #uuid [:set :owned-set]
+ :part-id #uuid [:part :owned-part]
+
+ ;; if linking between an :owned-set and an :owned-part we can track additional attributes
+ :status :added-to-set :missing
+ :note "broken, bent, etc."
+ }
+
+{:type :owned-set
+ :xt/id (uuid-random)
+ :pictures [:picture]}
+
+{:type :owned-part
+ :xt/id (uuid-random)}
+
+{:type :picture
+ :xt/id (uuid-random)
+ :file-name ""}
+```
+
+## tasks which need to be accomplished
+
+- print pictures for the bags based on the information in the database
+
+- let the person enter the lego id on the instructions -> make a search API request -> person selects which set it is
+  - fetch all the parts via the API and paginate through to get all the parts of the set
+  - insert individual entities for each of the parts and in case the quantity is greater than 1, create multiple `:set-contains-part` entities
+
+- look up parts by their lego id and then choose the color
+  - then display the sets this part belongs to and give us an option to assign it to one.
+
+- how can I have different views and track what kind of view is being displayed? watch an atom like it https://electric.hyperfiddle.net/user.tutorial-7guis-5-crud!CRUD and does that work for a multiplayer setup?
