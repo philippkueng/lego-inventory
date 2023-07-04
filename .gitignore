@@ -26,3 +26,4 @@ java/.project
 /data/
 /resources/public/js/
 /.shadow-cljs/
+/.clj-kondo/
