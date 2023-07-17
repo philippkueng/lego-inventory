@@ -1,5 +1,6 @@
 (ns app.todo-list
   (:require #?(:clj [app.xtdb-contrib :as db])
+            #?(:clj [app.backend-helpers :as bh])
             [hyperfiddle.electric :as e]
             [hyperfiddle.electric-dom2 :as dom]
             [hyperfiddle.electric-ui4 :as ui]
@@ -9,15 +10,55 @@
 (e/def !xtdb)
 (e/def db) ; injected database ref; Electric defs are always dynamic
 
-#?(:clj (defonce api-url "https://rebrickable.com/api/v3/lego"))
-#?(:clj (defonce api-key (System/getenv "REBRICKABLE_API_KEY")))
+(def pages #{:rebrickable-sets ;; a view to aid with importing sets from rebrickable
+             :rebrickable-set-detail})
+
+(def !client-state (atom {:page :rebrickable-sets}))
+
+(defn goto-page! [page page-options]
+  (swap! !client-state (fn [state]
+                         (-> state
+                             (assoc :page page)
+                             (assoc :page-options page-options)))))
+
+(e/defn LegoSetDetail [id]
+  (e/server
+   (let [e (xt/entity db id)]
+     (e/client
+      (dom/div (dom/props {:class "lego-set-detail"})
+       (dom/h1 (dom/text (:rebrickable/name e)))
+       (dom/img (dom/props {:src (:rebrickable/image-url e)}))
+       (dom/div (dom/props {:class "attributes-table"})
+                (dom/div
+                 (dom/span (dom/text "Internal Id"))
+                 (dom/span (dom/text (:xt/id e))))
+                (dom/div
+                 (dom/span (dom/text "Id"))
+                 (dom/span (dom/text (:rebrickable/id e))))
+                (dom/div
+                 (dom/span (dom/text "Rebrickable entry"))
+                 (dom/a (dom/props {:href (:rebrickable/url e)})
+                        (dom/text "link"))))
+       #_(dom/pre (dom/text (e/server (pr-str e)))))))))
 
 (e/defn LegoSet [id]
   (e/server
    (let [e (xt/entity db id)]
      (e/client
-      (dom/ul
-       (dom/li (dom/text (e/server (format "id: %s - name: %s" (:rebrickable/id e) (:rebrickable/name e))))))))))
+      (dom/li
+       (dom/div
+        (dom/img (dom/props {:src (:rebrickable/image-url e)}))
+        (dom/div
+         (dom/span (dom/text "Id"))
+         (ui/button (e/fn [] (e/client (goto-page! :rebrickable-set-detail {:xt/id id})))
+                    (dom/text (:rebrickable/id e))))
+        (dom/div
+         (dom/span (dom/text "Name"))
+         (dom/span (dom/text (:rebrickable/name e))))
+        (dom/div
+         (dom/span (dom/text "Part count"))
+         (dom/span (dom/text (str "Distinct: " (e/server (e/offload #(bh/distinct-number-of-parts-of-set db id))))))
+         (dom/span (dom/text (str "Absolut: " (e/server (e/offload #(bh/number-of-parts-of-set db id)))))))))))))
 
 (e/defn InputSubmit [F placeholder-message]
   ; Custom input control using lower dom interface for Enter handling
@@ -28,101 +69,47 @@
                                      (new F v)
                                      (set! (.-value dom/node) "")))))))
 
-(e/defn TodoCreate []
-  (e/client
-   (InputSubmit. (e/fn [v]
-                   (e/server
-                    (e/discard
-                     (e/offload
-                      #(xt/submit-tx !xtdb [[:xtdb.api/put
-                                             {:xt/id (random-uuid)
-                                              :task/description v
-                                              :task/status :active}]])))))
-                 "Buy milk")))
-
-#?(:clj (defn fetch-set [id]
-          (-> (client/get
-               (format "%s/sets/%s/" api-url id)
-               {:accept :json
-                :content-type :json
-                :as :json
-                :headers {:Authorization (format "key %s" api-key)}})
-              :body
-              ((fn [body]
-                 {:type :set
-                  :xt/id (random-uuid)
-                  :rebrickable/id (:set_num body)
-                  :rebrickable/name (:name body)
-                  :rebrickable/url (:set_url body)
-                  :rebrickable/release-year (:year body)
-                  :rebrickable/theme-id (:theme_id body)
-                  :rebrickable/image-url (:set_url body)})))))
-
 (comment
 
-  (fetch-set "6815-1")
+  (bh/fetch-set "6815-1")
 ;; => {:type :set, :xt/id #uuid "7b6a561e-5a76-4c39-8c04-c28af869b151", :rebrickable/id "6815-1", :rebrickable/name "Hovertron", :rebrickable/url "https://rebrickable.com/sets/6815-1/hovertron/", :rebrickable/release-year 1996, :rebrickable/theme-id 131, :rebrickable/image-url "https://rebrickable.com/sets/6815-1/hovertron/"}
   )
-
-#?(:clj
-   (defn fetch-parts [id]
-     (let [results (atom [])
-           done (atom false)
-           url (atom (format "%s/sets/%s/parts" api-url id))
-           options {:accept :json
-                    :content-type :json
-                    :as :json
-                    :headers {:Authorization (format "key %s" api-key)}}]
-       (while (not @done)
-         (let [response (client/get @url options)]
-           (reset! results (concat @results (-> response :body :results)))
-           (if-let [next (-> response :body :next)]
-             (reset! url next)
-             (reset! done true))))
-       (->> @results
-            (map (fn [part]
-                   (repeat (:quantity part)
-                           {:type :part
-                            :xt/id (random-uuid)
-                            ;;:rebrickable/id (:id part)
-                            :rebrickable/element-id (:element_id part) ;; why are some element-id values nil?
-                            :rebrickable/name (-> part :part :name)
-                            :rebrickable/url (-> part :part :part_url)
-                            :rebrickable/image-url (-> part :part :part_img_url)
-                            :part/number (-> part :part :part_num)
-                            :color/id (-> part :color :id)
-                            :color/name (-> part :color :name)})))
-            flatten))))
 
 (comment
 
   (repeat 2 "hello"))
 
 (comment
-  (count (fetch-parts "8446-1"))
+  (count (bh/fetch-parts "8446-1" 12))
 
-  (count (fetch-parts "6512-1")))
-
+  (first (bh/fetch-parts "8446-1" 12))
+;; => {:rebrickable/name "Axle Hose, Soft 14L", :belongs-to 12, :rebrickable/image-url "https://cdn.rebrickable.com/media/parts/ldraw/0/32201.png", :type :part, :rebrickable/element-id "4121648", :color/name "Black", :color/id 0, :part/number "32201", :xt/id #uuid "7cca0439-b3cb-4a61-911b-0dd931d44579", :rebrickable/url "https://rebrickable.com/parts/32201/axle-hose-soft-14l/"}
+  )
 (e/defn ImportSet []
   (e/client
-   (InputSubmit. (e/fn [v]
-                   (e/server
-                    (e/discard
-                     (e/offload
-                      #(let [set (fetch-set v)
-                             parts (fetch-parts v)]
-                         (xt/submit-tx !xtdb [[::xt/put set]])
-                         (xt/submit-tx !xtdb (->> parts
-                                                  (map (fn [p] [::xt/put p]))
-                                                  (into []))))))))
-                 "Rebrickable Set ID...")))
+   (dom/div (dom/props {:class "import-set"})
+            (dom/span (dom/text "Import set:"))
+            (InputSubmit. (e/fn [v]
+                            (e/server
+                             (e/discard
+                              (e/offload
+                               #(if (not (bh/is-set-in-database? db v))
+                                  (let [set (bh/fetch-set v)
+                                        parts (bh/fetch-parts v (:xt/id set))]
+                                    (xt/submit-tx !xtdb [[::xt/put set]])
+                                    (xt/submit-tx !xtdb (->> parts
+                                                             (map (fn [p] [::xt/put p]))
+                                                             (into []))))
+                                  (println "Set with ID" v "is already in the database."))))))
+                          "Rebrickable Set ID..."))))
 
 #?(:clj
    (defn lego-sets [db]
-     (->> (xt/q db '{:find [(pull ?e [:xt/id :rebrickable/name :rebrickable/id])]
+     (->> (xt/q db '{:find [(pull ?e [:xt/id :rebrickable/name :rebrickable/id :imported-at])]
                      :where [[?e :type :set]]})
           (map first)
-          (sort-by :rebrickable/id)
+          (sort-by :imported-at)
+          (reverse)
           vec)))
 
 (comment
@@ -147,17 +134,33 @@
 
 (comment (todo-count user/db))
 
+(e/defn Navigation []
+  (e/client
+   (dom/div (dom/props {:class "navigation"})
+            (ui/button (e/fn [] (goto-page! :rebrickable-sets nil)) (dom/text "Lego Sets")))))
+
 (e/defn Todo-list []
   (e/server
    (binding [!xtdb user/!xtdb
              db (new (db/latest-db> user/!xtdb))]
      (e/client
       (dom/link (dom/props {:rel :stylesheet :href "/todo-list.css"}))
-      (dom/h1 (dom/text "Lego inventory"))
-      (dom/div
-       (ImportSet.)
-       (dom/div
-        (dom/h1 (dom/text "Sets:"))
-        (e/server
-         (e/for-by :xt/id [{:keys [xt/id]} (e/offload #(lego-sets db))]
-                   (LegoSet. id)))))))))
+      (let [state (e/watch !client-state)]
+        (dom/pre (dom/text (pr-str state))))
+      (Navigation.)
+      (let [state (e/watch !client-state)
+            page (:page state)]
+        (condp = page
+          :rebrickable-sets
+          (dom/div
+           (ImportSet.)
+           (dom/div
+            (dom/h1 (dom/text (str (e/server (bh/number-of-sets db))) " Sets with " (e/server (bh/number-of-parts db)) " parts"))
+            (dom/ul (dom/props {:class "lego-sets"})
+                    (e/server
+                     (e/for-by :xt/id [{:keys [xt/id]} (e/offload #(lego-sets db))]
+                               (LegoSet. id))))))
+
+          :rebrickable-set-detail
+          (LegoSetDetail. (let [state (e/watch !client-state)]
+                            (:xt/id (:page-options state))))))))))

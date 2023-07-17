@@ -36,6 +36,58 @@ label::first-letter{
     text-transform: capitalize;
 }
 
+div.navigation {
+    padding-bottom: 2rem;
+}
+
+div.import-set span {
+    margin-right: 1rem;
+}
+
+/* a lego set entry */
+ul.lego-sets {
+    display: grid;
+    list-style: none;
+    padding: 0;
+}
+ul.lego-sets>li>div>img {
+    width: 80px;
+}
+
+ul.lego-sets>li>div {
+    display: grid;
+    grid-template-columns: 80px auto 1fr 1fr;
+    justify-content: start;
+    gap: 0 1rem;
+    padding: 0.5rem 0;
+}
+
+
+ul.lego-sets>li>div>div {
+    display: grid;
+    grid-template-rows: auto fit-content;
+}
+
+ul.lego-sets>li>div>div>span:first-child {
+    font-weight: bold;
+}
+
+div.lego-set-detail>img {
+    max-width: 50%
+}
+
+div.attributes-table span, div.attributes-table a {
+    display: block;
+}
+div.attributes-table>div {
+    display: grid;
+    grid-template-colums: 1fr 1fr;
+    padding: 0.5rem 0;
+}
+div.attributes-table>div>span:first-child {
+    font-weight:bold;
+}
+
 .todo-list{
     display:grid;
     grid-template-rows: auto fit-content auto;
