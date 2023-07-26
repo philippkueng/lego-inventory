@@ -142,6 +142,28 @@
   (distinct-number-of-parts-of-set (xt/db user/!xtdb)
                                    #uuid "d4221122-cc6c-4413-b31c-07b738d3271f"))
 
+(defn lego-sets [db]
+  (->> (xt/q db '{:find [(pull ?e [:xt/id :rebrickable/name :rebrickable/id :imported-at])]
+                  :where [[?e :type :set]]})
+       (map first)
+       (sort-by :imported-at)
+       (reverse)
+       vec))
+
+(defn lego-parts-for-set [db id]
+  (->> (xt/q db '{:find [(pull ?p [*])]
+                  :in [?set-id]
+                  :where [[?p :belongs-to ?set-id]]}
+             id)
+       (map first)
+       (group-by :rebrickable/id)
+       (sort-by #(count (val %)))
+       (reverse)
+       #_(map (fn [e] [(key e) (count (val e))]))))
+
+(comment
+  (lego-parts-for-set (xt/db user/!xtdb) #uuid "b1b7a7b3-6407-4dcc-94e8-9e18c2411920"))
+
 (comment
   ;; Data maintenance and migration functions to be used during development
   ;; ------
@@ -181,6 +203,22 @@
                    '{:find [?e (pull ?e [:rebrickable/id])]
                      :where [[?e :xt/id]
                              [?e :type :set]]})]
+    (doall
+     (doseq [s sets]
+       (let [parts (fetch-parts (:rebrickable/id (second s)) (first s))]
+         (xt/submit-tx user/!xtdb (->> parts
+                                       (map (fn [p] [::xt/put p]))
+                                       (into [])))
+         (println "Imported parts for set" (:rebrickable/id (second s)))
+         (Thread/sleep 10000)))))
+
+  ;; fetch the parts for the set with set-internal-id c17cf01b-eb48-4334-97dc-9efee4a621b1
+  (let [sets (xt/q (xt/db user/!xtdb)
+                   '{:find [?e (pull ?e [:rebrickable/id])]
+                     :in [?e]
+                     :where [[?e :xt/id]
+                             [?e :type :set]]}
+                   #uuid "c17cf01b-eb48-4334-97dc-9efee4a621b1")]
     (doall
      (doseq [s sets]
        (let [parts (fetch-parts (:rebrickable/id (second s)) (first s))]
@@ -243,3 +281,56 @@
                        [?p :rebrickable/name ?rebrickable-part-name]]
                :order-by [[(count ?p) :desc]]
                :limit 6})))
+
+(comment
+  ;; return the parts for a given set by its internal-set-id
+  (let [set-id #uuid "c17cf01b-eb48-4334-97dc-9efee4a621b1"]
+    (xt/q (xt/db user/!xtdb)
+          '{:find [?p]
+            :in [?rebrickable-set-id]
+            :where [[?p :belongs-to ?rebrickable-set-id]]}
+          set-id));; => #{}
+
+  ;; are there other sets without any parts associated to them?
+  (->> (xt/q (xt/db user/!xtdb)
+             '{:find [(pull ?e [:xt/id :rebrickable/name :rebrickable/id])]
+               :where [[?e :type :set]
+                       (not-join [?e] [?p :type :part]
+                                 [?p :belongs-to ?e])]}))
+  ;; => #{[{:rebrickable/name "Street Sweeper", :rebrickable/id "6649-1", :xt/id #uuid "c17cf01b-eb48-4334-97dc-9efee4a621b1"}]}
+  ;; it seems that a single set doesn't have any parts
+
+
+  )
+
+(comment
+  ;; add an owned entity for a given set and create owned-parts for all the parts of the set too to keep track of the still missing and added parts.
+
+  ;; given an internal-set-id, create a new owned set and owned parts.
+  (let [set-internal-id #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a" ;; Renegade Runner
+        db (xt/db user/!xtdb)]
+    (let [parts (xt/q db '{:find [?p]
+                           :in [?set-internal-id]
+                           :where [[?p :belongs-to ?set-internal-id]]}
+                      set-internal-id)
+          owned-set-id (random-uuid)]
+      (xt/submit-tx user/!xtdb [[::xt/put {:xt/id owned-set-id
+                                           :type :owned-set
+                                           :is-of-type set-internal-id}]])
+      (xt/submit-tx user/!xtdb (->> parts
+                                    (map (fn [p] [::xt/put {:xt/id (random-uuid)
+                                                            :type :owned-part
+                                                            :belongs-to owned-set-id
+                                                            :is-of-type p
+                                                            :status :part/missing}]))
+                                    (into []))))))
+
+(defn owned-sets-for-set [db set-internal-id]
+  (->> (xt/q db '{:find [?os]
+                  :in [?set-internal-id]
+                  :where [[?os :is-of-type ?set-internal-id]]}
+             set-internal-id)
+       (map first)))
+
+(comment
+  (owned-sets-for-set (xt/db user/!xtdb) #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a"))

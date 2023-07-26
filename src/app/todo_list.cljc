@@ -11,7 +11,10 @@
 (e/def db) ; injected database ref; Electric defs are always dynamic
 
 (def pages #{:rebrickable-sets ;; a view to aid with importing sets from rebrickable
-             :rebrickable-set-detail})
+             :rebrickable-set-detail
+             :rebrickable-part-detail ;; given a specific part, show where its being used
+             :owned-set-detail ;; one can see the progress of how many parts are still missing vs have been found
+             })
 
 (def !client-state (atom {:page :rebrickable-sets}))
 
@@ -26,20 +29,51 @@
    (let [e (xt/entity db id)]
      (e/client
       (dom/div (dom/props {:class "lego-set-detail"})
-       (dom/h1 (dom/text (:rebrickable/name e)))
-       (dom/img (dom/props {:src (:rebrickable/image-url e)}))
-       (dom/div (dom/props {:class "attributes-table"})
-                (dom/div
-                 (dom/span (dom/text "Internal Id"))
-                 (dom/span (dom/text (:xt/id e))))
-                (dom/div
-                 (dom/span (dom/text "Id"))
-                 (dom/span (dom/text (:rebrickable/id e))))
-                (dom/div
-                 (dom/span (dom/text "Rebrickable entry"))
-                 (dom/a (dom/props {:href (:rebrickable/url e)})
-                        (dom/text "link"))))
-       #_(dom/pre (dom/text (e/server (pr-str e)))))))))
+               (dom/h1 (dom/text (:rebrickable/name e)))
+               (dom/img (dom/props {:src (:rebrickable/image-url e)}))
+               (dom/div (dom/props {:class "attributes-table"})
+                        (dom/div
+                         (dom/span (dom/text "Internal Id"))
+                         (dom/span (dom/text (:xt/id e))))
+                        (dom/div
+                         (dom/span (dom/text "Id"))
+                         (dom/span (dom/text (:rebrickable/id e))))
+                        (dom/div
+                         (dom/span (dom/text "Rebrickable entry"))
+                         (dom/a (dom/props {:href (:rebrickable/url e)})
+                                (dom/text "link"))))
+               (dom/h2 (dom/text "Owned Sets"))
+               (dom/div
+                 (e/server
+                   (e/for [owned-set-id (e/offload #(bh/owned-sets-for-set db id))]
+                     (e/client
+                       (dom/div
+                         (dom/span (dom/text owned-set-id)))))))
+               (dom/h2 (dom/text "Parts of this set"))
+               (dom/div (dom/props {:class "part-list"})
+                        (e/server
+                         (e/for [part (e/offload #(bh/lego-parts-for-set db id))]
+                           (e/client
+                            (dom/div
+                             (dom/img (dom/props {:src (:rebrickable/image-url (-> part second first))}))
+                             (dom/div
+                              (dom/div
+                               (dom/span (dom/text "Id"))
+                               (ui/button (e/fn [] (e/client (goto-page! :rebrickable-part-detail {:xt/id id})))
+                                          (dom/text (first part))))
+                              (dom/div
+                                (dom/span (dom/text "Color"))
+                                (dom/span (dom/text (-> part second first :color/name)))))
+                             (dom/div
+                              (dom/span (dom/text "Name"))
+                              (dom/span (dom/text (-> part second first :rebrickable/name))))
+                             (dom/div
+                              (dom/span (dom/text "Number of pieces"))
+                              (dom/span (dom/text (-> part second count))))))))
+                        #_(e/server
+                           (e/for-by :xt/id [{:keys [xt/id]} (e/offload #(bh/lego-sets db))]
+                                     (LegoSet. id))))
+               #_(dom/pre (dom/text (e/server (pr-str e)))))))))
 
 (e/defn LegoSet [id]
   (e/server
@@ -103,18 +137,9 @@
                                   (println "Set with ID" v "is already in the database."))))))
                           "Rebrickable Set ID..."))))
 
-#?(:clj
-   (defn lego-sets [db]
-     (->> (xt/q db '{:find [(pull ?e [:xt/id :rebrickable/name :rebrickable/id :imported-at])]
-                     :where [[?e :type :set]]})
-          (map first)
-          (sort-by :imported-at)
-          (reverse)
-          vec)))
-
 (comment
-  (lego-sets user/db)
-  (lego-sets (xt/db user/!xtdb)))
+  (bh/lego-sets user/db)
+  (bh/lego-sets (xt/db user/!xtdb)))
 
 (comment
   ;; what are the most occuring parts in the database?
@@ -158,9 +183,15 @@
             (dom/h1 (dom/text (str (e/server (bh/number-of-sets db))) " Sets with " (e/server (bh/number-of-parts db)) " parts"))
             (dom/ul (dom/props {:class "lego-sets"})
                     (e/server
-                     (e/for-by :xt/id [{:keys [xt/id]} (e/offload #(lego-sets db))]
+                     (e/for-by :xt/id [{:keys [xt/id]} (e/offload #(bh/lego-sets db))]
                                (LegoSet. id))))))
 
           :rebrickable-set-detail
           (LegoSetDetail. (let [state (e/watch !client-state)]
-                            (:xt/id (:page-options state))))))))))
+                            (:xt/id (:page-options state))))
+
+          :rebrickable-part-detail
+          (dom/div (dom/span (dom/text "This is the detail view of the selected")))
+
+          :owned-set-detail
+          (dom/div (dom/span (dom/text "This is the owned set detail view of a selected set.")))))))))

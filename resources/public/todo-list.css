@@ -88,6 +88,26 @@ div.attributes-table>div>span:first-child {
     font-weight:bold;
 }
 
+div.part-list>div>img {
+    width: 100px;
+}
+div.part-list>div {
+    display: grid;
+    grid-template-columns: 100px 1fr 1fr 1fr;
+    gap: 0 1rem;
+    padding: 0.5rem 0;
+}
+div.part-list>div>div, div.part-list>div>div>div {
+    display: grid;
+    grid-template-rows: auto auto;
+}
+div.part-list>div>div>div {
+    padding-bottom: 0.5rem;
+}
+div.part-list>div>div>span:first-child, div.part-list>div>div>div>span:first-child {
+    font-weight: bold;
+}
+
 .todo-list{
     display:grid;
     grid-template-rows: auto fit-content auto;

@@ -51,11 +51,14 @@ shadow-cljs - nREPL server started on port 9001
 
 {:type :owned-set
  :xt/id (uuid-random)
- :of-set internal-set-id ;; :xt/id
+ :is-of-set internal-set-id ;; :xt/id
  :pictures [:picture]}
 
 {:type :owned-part
- :xt/id (uuid-random)}
+ :belongs-to internal-set-id (of owned-set)
+ :is-of-part internal-part-id
+ :xt/id (uuid-random)
+ :status #{:part/added :part/missing}}
 
 {:type :picture
  :xt/id (uuid-random)
@@ -74,3 +77,26 @@ shadow-cljs - nREPL server started on port 9001
   - then display the sets this part belongs to and give us an option to assign it to one.
 
 - how can I have different views and track what kind of view is being displayed? watch an atom like it https://electric.hyperfiddle.net/user.tutorial-7guis-5-crud!CRUD and does that work for a multiplayer setup?
+
+- sort sets by
+  - number of absolute parts
+
+- be able to go to the part detail view where it's displayed in which other set it's part of and in what quantity
+
+---
+
+## Strategies for sorting
+
+My goal is to finish smaller sets first.
+
+For this I'd make a group of lego-sets as an entity and then I can query their parts and the frequency that they appear in.
+Eg. I'll create a group for a small race car and a fire engine. Then I look at all their black parts. With this I then rough sort the black parts into buckets that match the parts needed for this set. With every part found I'll update the parts entities belonging to this set indicating that it's found and assigned.
+
+
+## next steps
+
+- [x] remove all the 8062-1 sets with their associated parts
+- for all the existing sets,
+  - [x] delete their associated parts
+  - [x] and re-fetch them with a proper sleep in between the calls
+- [x] re-add this 8062-1 manually
