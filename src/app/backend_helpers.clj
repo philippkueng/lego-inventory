@@ -356,12 +356,12 @@
 (comment
   (owned-sets-for-set (xt/db user/!xtdb) #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a"))
 
-(defn part-metadata [db rebrickable-part-num]
+(defn part-metadata [db rebrickable-element-id]
   (->> (xt/q db '{:find [(pull ?p [*])]
-                      :in [?part-num]
-                      :where [[?p :rebrickable.part/part-num ?part-num]]
+                      :in [?element-id]
+                      :where [[?p :rebrickable/element-id ?element-id]]
                       :limit 1}
-                 rebrickable-part-num)
+                 rebrickable-element-id)
            first
            first))
 
@@ -370,11 +370,11 @@
 ;; => {:rebrickable/name "Cone 1 x 1 [No Top Groove]", :belongs-to #uuid "e3767dc6-2a31-4373-8c3a-a41e8423e481", :rebrickable/image-url "https://cdn.rebrickable.com/media/parts/elements/458926.jpg", :type :part, :rebrickable/id 7773230, :rebrickable.part/part-num "4589", :rebrickable/element-id "458926", :color/name "Black", :color/id 0, :part/number "4589", :xt/id #uuid "01e21469-4e63-488d-81ca-1a3e633c1395", :rebrickable/url "https://rebrickable.com/parts/4589/cone-1-x-1-no-top-groove/"}
   )
 
-(defn part-occurrence-across-sets [db rebrickable-part-num]
+(defn part-occurrence-across-sets [db rebrickable-element-id]
   (->> (xt/q db '{:find [(count ?p)]
-                  :in [?part-num]
-                  :where [[?p :rebrickable.part/part-num ?part-num]]}
-             rebrickable-part-num)
+                  :in [?element-id]
+                  :where [[?p :rebrickable/element-id ?element-id]]}
+             rebrickable-element-id)
        first
        first))
 
@@ -383,15 +383,38 @@
   )
 
 
-(defn part-occurrence-in-sets [db rebrickable-part-num]
+(defn part-occurrence-in-sets [db rebrickable-element-id]
   (->> (xt/q db '{:find [(pull ?set [:xt/id :rebrickable/name]) (count ?p)]
-                  :in [?rebrickable-part-num]
-                  :where [[?p :rebrickable.part/part-num ?rebrickable-part-num]
+                  :in [?rebrickable-element-id]
+                  :where [[?p :rebrickable/element-id ?rebrickable-element-id]
                           [?p :belongs-to ?set]]
                   :order-by [[(count ?p) :desc]]}
-             rebrickable-part-num)))
+             rebrickable-element-id)))
 
 (comment
   (part-occurrence-in-sets (xt/db user/!xtdb) "4589")
 
+  )
+
+(comment
+;; figuring out how the :rebrickable.part/part-num and the :rebrickable/id are to be understood with part entities
+  (xt/q (xt/db user/!xtdb)
+        '{:find [(pull ?p [:rebrickable.part/part-num :rebrickable/id :color/name :rebrickable/element-id])]
+          :where [[?p :type :part]
+                  [?p :rebrickable.part/part-num "4589"]
+                  [?p :color/name "Trans-Dark Blue"]]})
+;; => #{[{:rebrickable/id 639152, :rebrickable.part/part-num "4589", :rebrickable/element-id "618843", :color/name "Trans-Dark Blue"}] [{:rebrickable/id 43420, :rebrickable.part/part-num "4589", :rebrickable/element-id "618843", :color/name "Trans-Dark Blue"}] [{:rebrickable/id 800469, :rebrickable.part/part-num "4589", :rebrickable/element-id "618843", :color/name "Trans-Dark Blue"}]}
+
+  ;; this must mean that the :rebrickable/id is even more unique than just the mold and the color, HOWEVER the :rebrickable/element-id seems to otherwise match our criteria
+
+  (xt/q (xt/db user/!xtdb)
+        '{:find [(pull ?p [:rebrickable.part/part-num :rebrickable/id :color/name :rebrickable/element-id])]
+          :where [[?p :type :part]
+                  [?p :rebrickable.part/part-num "4589"]
+                  (or
+                   [?p :color/name "Trans-Dark Blue"]
+                   [?p :color/name "Blue"])]})
+  ;; => #{[{:rebrickable/id 639152, :rebrickable.part/part-num "4589", :rebrickable/element-id "618843", :color/name "Trans-Dark Blue"}] [{:rebrickable/id 43420, :rebrickable.part/part-num "4589", :rebrickable/element-id "618843", :color/name "Trans-Dark Blue"}] [{:rebrickable/id 530086, :rebrickable.part/part-num "4589", :rebrickable/element-id "458923", :color/name "Blue"}] [{:rebrickable/id 645163, :rebrickable.part/part-num "4589", :rebrickable/element-id "458923", :color/name "Blue"}] [{:rebrickable/id 1114337, :rebrickable.part/part-num "4589", :rebrickable/element-id "458923", :color/name "Blue"}] [{:rebrickable/id 800469, :rebrickable.part/part-num "4589", :rebrickable/element-id "618843", :color/name "Trans-Dark Blue"}]}
+
+;; yes my suspicion seems to be confirmed that the element-id is the unique id for the mold and color. Furthermore when looking at the available colors on https://rebrickable.com/parts/4589/cone-1-x-1-no-top-groove/ it also seems to add up.
   )

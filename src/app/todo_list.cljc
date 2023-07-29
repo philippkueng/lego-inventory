@@ -30,16 +30,16 @@
                              (assoc :page page)
                              (assoc :page-options page-options)))))
 
-(e/defn LegoPartDetail [rebrickable-part-num]
+(e/defn LegoPartDetail [rebrickable-element-id]
   (e/client
-   (let [part (e/server (e/offload #(bh/part-metadata db rebrickable-part-num)))]
+   (let [part (e/server (e/offload #(bh/part-metadata db rebrickable-element-id)))]
      (e/client
       (dom/div (dom/props {:class "lego-part-detail"})
                (dom/h1 (dom/text "Lego part: " (:rebrickable/name part)))
                (dom/img (dom/props {:src (:rebrickable/image-url part)}))
                (dom/div (dom/props {:class "attributes-table"})
                         (dom/div
-                         (dom/span (dom/text "Rebrickable Part Numer"))
+                         (dom/span (dom/text "Rebrickable Part Number"))
                          (dom/span (dom/text (:rebrickable.part/part-num part))))
                         (dom/div
                          (dom/span (dom/text "Rebrickable URL"))
@@ -52,13 +52,13 @@
 
                         (dom/div
                          (dom/span (dom/text "Overall occurrence of part within sets"))
-                         (dom/span (dom/text (e/server (e/offload #(bh/part-occurrence-across-sets db rebrickable-part-num))))))
+                         (dom/span (dom/text (e/server (e/offload #(bh/part-occurrence-across-sets db rebrickable-element-id))))))
 
                         #_(dom/pre (dom/text (pr-str part))))
                (dom/h2 (dom/text "Occurrence of part in sets"))
 
                (dom/div (dom/props {:class "part-occurrence-in-sets"})
-                        (e/for [set-with-occurrence (e/server (e/offload #(bh/part-occurrence-in-sets db rebrickable-part-num)))]
+                        (e/for [set-with-occurrence (e/server (e/offload #(bh/part-occurrence-in-sets db rebrickable-element-id)))]
                           (dom/div
                            (dom/div
 
@@ -72,57 +72,57 @@
 
 
 (e/defn LegoSetDetail [id]
-  (e/server
-   (let [e (xt/entity db id)]
-     (e/client
-      (dom/div (dom/props {:class "lego-set-detail"})
-               (dom/h1 (dom/text (:rebrickable/name e)))
-               (dom/img (dom/props {:src (:rebrickable/image-url e)}))
-               (dom/div (dom/props {:class "attributes-table"})
-                        (dom/div
-                         (dom/span (dom/text "Internal Id"))
-                         (dom/span (dom/text (:xt/id e))))
-                        (dom/div
-                         (dom/span (dom/text "Id"))
-                         (dom/span (dom/text (:rebrickable/id e))))
-                        (dom/div
-                         (dom/span (dom/text "Rebrickable entry"))
-                         (dom/a (dom/props {:href (:rebrickable/url e)})
-                                (dom/text "link"))))
-               (dom/h2 (dom/text "Owned Sets"))
-               (dom/div
-                (e/server
-                 (e/for [owned-set-id (e/offload #(bh/owned-sets-for-set db id))]
-                   (e/client
-                    (dom/div
-                     (ui/button (e/fn [] (e/client (goto-page! :owned-set-detail {:xt/id owned-set-id})))
-                                (dom/text owned-set-id)))))))
-               (dom/h2 (dom/text "Parts of this set"))
-               (dom/div (dom/props {:class "part-list"})
-                        (e/for [part (e/server (e/offload #(bh/lego-parts-for-set db id)))]
-                          (e/client
+  (let [e (e/server (xt/entity db id))]
+    (e/client
+     (dom/div (dom/props {:class "lego-set-detail"})
+              (dom/h1 (dom/text (:rebrickable/name e)))
+              (dom/img (dom/props {:src (:rebrickable/image-url e)}))
+              (dom/div (dom/props {:class "attributes-table"})
+                       (dom/div
+                        (dom/span (dom/text "Internal Id"))
+                        (dom/span (dom/text (:xt/id e))))
+                       (dom/div
+                        (dom/span (dom/text "Id"))
+                        (dom/span (dom/text (:rebrickable/id e))))
+                       (dom/div
+                        (dom/span (dom/text "Rebrickable entry"))
+                        (dom/a (dom/props {:href (:rebrickable/url e)})
+                               (dom/text "link"))))
+              (dom/h2 (dom/text "Owned Sets"))
+              (dom/div
+               (e/for [owned-set-id (e/server (e/offload #(bh/owned-sets-for-set db id)))]
+                 (dom/div
+                  (ui/button (e/fn [] (e/client (goto-page! :owned-set-detail {:xt/id owned-set-id})))
+                             (dom/text owned-set-id)))))
+              (dom/h2 (dom/text "Parts of this set"))
+              (dom/div (dom/props {:class "part-list"})
+                       (e/for [part (e/server (e/offload #(bh/lego-parts-for-set db id)))]
+                         (dom/div
+                          (dom/img (dom/props {:src (:rebrickable/image-url (-> part second first))}))
+                          (dom/div
                            (dom/div
-                            (dom/img (dom/props {:src (:rebrickable/image-url (-> part second first))}))
-                            (dom/div
-                             (dom/div
-                              (dom/span (dom/text "Id"))
-                              (let [part-num (-> part second first :rebrickable.part/part-num)]
-                                (ui/button (e/fn []
-                                             (e/client (goto-page! :rebrickable-part-detail {:rebrickable.part/part-num part-num})))
-                                           (dom/text part-num))))
-                             (dom/div
-                              (dom/span (dom/text "Color"))
-                              (dom/span (dom/text (-> part second first :color/name)))))
-                            (dom/div
-                             (dom/span (dom/text "Name"))
-                             (dom/span (dom/text (-> part second first :rebrickable/name))))
-                            (dom/div
-                             (dom/span (dom/text "Number of pieces"))
-                             (dom/span (dom/text (-> part second count)))))))
-                        #_(e/server
-                           (e/for-by :xt/id [{:keys [xt/id]} (e/offload #(bh/lego-sets db))]
-                                     (LegoSet. id))))
-               #_(dom/pre (dom/text (e/server (pr-str e)))))))))
+                            (dom/span (dom/text "Part Number"))
+                            (dom/span (dom/text (-> part second first :rebrickable.part/part-num))))
+                           (dom/div
+                             (dom/span (dom/text "Part Element Id"))
+                             (let [element-id (-> part second first :rebrickable/element-id)]
+                               (ui/button (e/fn []
+                                            (e/client (goto-page! :rebrickable-part-detail {:rebrickable/element-id element-id})))
+                                          (dom/text element-id)))))
+                          (dom/div
+                           (dom/div
+                            (dom/span (dom/text "Name"))
+                            (dom/span (dom/text (-> part second first :rebrickable/name))))
+                           (dom/div
+                            (dom/span (dom/text "Color"))
+                            (dom/span (dom/text (-> part second first :color/name)))))
+                          (dom/div
+                           (dom/span (dom/text "Number of pieces"))
+                           (dom/span (dom/text (-> part second count))))))
+                       #_(e/server
+                          (e/for-by :xt/id [{:keys [xt/id]} (e/offload #(bh/lego-sets db))]
+                                    (LegoSet. id))))
+              #_(dom/pre (dom/text (e/server (pr-str e))))))))
 
 (e/defn LegoSet [id]
   (e/server
@@ -241,7 +241,7 @@
 
           :rebrickable-part-detail
           (LegoPartDetail. (let [state (e/watch !client-state)]
-                             (:rebrickable.part/part-num (:page-options state))))
+                             (:rebrickable/element-id (:page-options state))))
 
           :owned-set-detail
           (dom/div (dom/span (dom/text "This is the owned set detail view of a selected set.")))))))))
