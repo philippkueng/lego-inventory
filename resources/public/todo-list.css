@@ -108,6 +108,19 @@ div.part-list>div>div>span:first-child, div.part-list>div>div>div>span:first-chi
     font-weight: bold;
 }
 
+div.part-occurrence-in-sets>div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+div.part-occurrence-in-sets>div>div {
+    display: grid;
+    grid-template-rows: auto auto;
+    padding: 0.5rem 1rem 0.5rem 0;
+}
+div.part-occurrence-in-sets>div>div>span:first-child {
+    font-weight: bold;
+}
+
 .todo-list{
     display:grid;
     grid-template-rows: auto fit-content auto;

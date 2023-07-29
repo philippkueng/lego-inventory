@@ -356,28 +356,42 @@
 (comment
   (owned-sets-for-set (xt/db user/!xtdb) #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a"))
 
-(defn part-metadata [db rebrickable-part-id]
+(defn part-metadata [db rebrickable-part-num]
   (->> (xt/q db '{:find [(pull ?p [*])]
-                      :in [?rebrickable-id]
-                      :where [[?p :rebrickable/id ?rebrickable-id]]
+                      :in [?part-num]
+                      :where [[?p :rebrickable.part/part-num ?part-num]]
                       :limit 1}
-                 rebrickable-part-id)
+                 rebrickable-part-num)
            first
            first))
 
 (comment
-  (part-metadata (xt/db user/!xtdb) 692663);; => [[{:rebrickable/name "Cone 1 x 1 [No Top Groove]", :belongs-to #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a", :rebrickable/image-url "https://cdn.rebrickable.com/media/parts/elements/458926.jpg", :type :part, :rebrickable/id 692663, :rebrickable/element-id "458926", :color/name "Black", :color/id 0, :part/number "4589", :xt/id #uuid "0719694a-3cce-4b19-9b18-2b24a352ee40", :rebrickable/url "https://rebrickable.com/parts/4589/cone-1-x-1-no-top-groove/"}]]
+  (part-metadata (xt/db user/!xtdb) "4589")
+;; => {:rebrickable/name "Cone 1 x 1 [No Top Groove]", :belongs-to #uuid "e3767dc6-2a31-4373-8c3a-a41e8423e481", :rebrickable/image-url "https://cdn.rebrickable.com/media/parts/elements/458926.jpg", :type :part, :rebrickable/id 7773230, :rebrickable.part/part-num "4589", :rebrickable/element-id "458926", :color/name "Black", :color/id 0, :part/number "4589", :xt/id #uuid "01e21469-4e63-488d-81ca-1a3e633c1395", :rebrickable/url "https://rebrickable.com/parts/4589/cone-1-x-1-no-top-groove/"}
+  )
+
+(defn part-occurrence-across-sets [db rebrickable-part-num]
+  (->> (xt/q db '{:find [(count ?p)]
+                  :in [?part-num]
+                  :where [[?p :rebrickable.part/part-num ?part-num]]}
+             rebrickable-part-num)
+       first
+       first))
+
+(comment
+  (part-occurrence-across-sets (xt/db user/!xtdb) "4589")
   )
 
 
-(defn part-occurrence-in-sets [db rebrickable-part-id]
+(defn part-occurrence-in-sets [db rebrickable-part-num]
   (->> (xt/q db '{:find [(pull ?set [:xt/id :rebrickable/name]) (count ?p)]
-                  :in [?rebrickable-id]
-                  :where [[?p :rebrickable/id ?rebrickable-id]
-                          [?p :belongs-to ?set]]}
-             rebrickable-part-id)))
+                  :in [?rebrickable-part-num]
+                  :where [[?p :rebrickable.part/part-num ?rebrickable-part-num]
+                          [?p :belongs-to ?set]]
+                  :order-by [[(count ?p) :desc]]}
+             rebrickable-part-num)))
 
 (comment
-  (part-occurrence-in-sets (xt/db user/!xtdb) 692663)
+  (part-occurrence-in-sets (xt/db user/!xtdb) "4589")
 
-  (part-occurrence-in-sets (xt/db user/!xtdb) 155384))
+  )

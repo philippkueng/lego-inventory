@@ -19,7 +19,10 @@
 (def !client-state (atom #_{:page :rebrickable-sets}
                     #_{:page :rebrickable-set-detail, :page-options {:xt/id #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a"}}
                     #_{:page :rebrickable-part-detail, :page-options {:xt/id #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a"}}
-                    {:page :rebrickable-part-detail, :page-options {:rebrickable.part/part-num 3294662}}))
+                    #_{:page :rebrickable-set-detail, :page-options {:xt/id #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a"}}
+                    #_{:page :rebrickable-part-detail, :page-options {:rebrickable.part/part-num "4589"}}
+                         {:page :rebrickable-set-detail, :page-options {:xt/id #uuid "44246b35-99e1-4f6c-92db-022e5db9df0f"}}
+                         #_{:page :rebrickable-part-detail, :page-options {:rebrickable.part/part-num 3294662}}))
 
 (defn goto-page! [page page-options]
   (swap! !client-state (fn [state]
@@ -27,32 +30,46 @@
                              (assoc :page page)
                              (assoc :page-options page-options)))))
 
-;;
-(e/defn LegoPartDetail [rebrickable-part-id]
+(e/defn LegoPartDetail [rebrickable-part-num]
   (e/client
-   (let [part (e/server (e/offload #(bh/part-metadata db rebrickable-part-id)))]
+   (let [part (e/server (e/offload #(bh/part-metadata db rebrickable-part-num)))]
      (e/client
       (dom/div (dom/props {:class "lego-part-detail"})
-               (dom/h1 (dom/text (:rebrickable/name part)))
+               (dom/h1 (dom/text "Lego part: " (:rebrickable/name part)))
                (dom/img (dom/props {:src (:rebrickable/image-url part)}))
                (dom/div (dom/props {:class "attributes-table"})
+                        (dom/div
+                         (dom/span (dom/text "Rebrickable Part Numer"))
+                         (dom/span (dom/text (:rebrickable.part/part-num part))))
+                        (dom/div
+                         (dom/span (dom/text "Rebrickable URL"))
+                         (dom/a (dom/props {:href (:rebrickable/url part)})
+                                (dom/text "link")))
+                        (dom/div
+                         (dom/span (dom/text "Color"))
+                         ;; todo I think the part/part-num defined the mold while the id is the mold with the color
+                         (dom/span (dom/text (:color/name part))))
 
                         (dom/div
-                          (dom/span (dom/text "Rebrickable Part Id"))
-                          (dom/span (dom/text (:rebrickable/id part))))
-                        (dom/div
-                          (dom/span (dom/text "Rebrickable URL"))
-                          (dom/a (dom/props {:href (:rebrickable/url part)})
-                                 (dom/text "link")))
-                        (dom/div
-                          (dom/span (dom/text "Color"))
-                          (dom/span (dom/text (:color/name part))))
+                         (dom/span (dom/text "Overall occurrence of part within sets"))
+                         (dom/span (dom/text (e/server (e/offload #(bh/part-occurrence-across-sets db rebrickable-part-num))))))
 
-                        ;; how many times is this part needed over all the sets?
-                        ;; list all the sets needing this part and their quantity of this part
+                        #_(dom/pre (dom/text (pr-str part))))
+               (dom/h2 (dom/text "Occurrence of part in sets"))
 
+               (dom/div (dom/props {:class "part-occurrence-in-sets"})
+                        (e/for [set-with-occurrence (e/server (e/offload #(bh/part-occurrence-in-sets db rebrickable-part-num)))]
+                          (dom/div
+                           (dom/div
 
-                        (dom/pre (dom/text (pr-str part)))))))))
+                            (dom/span (dom/text "Set"))
+                            (ui/button (e/fn []
+                                         (e/client (goto-page! :rebrickable-set-detail {:xt/id (-> set-with-occurrence first :xt/id)})))
+                                       (dom/text (-> set-with-occurrence first :rebrickable/name))))
+                           (dom/div
+                            (dom/span (dom/text "Occurrence"))
+                            (dom/span (dom/text (-> set-with-occurrence second))))))))))))
+
 
 (e/defn LegoSetDetail [id]
   (e/server
@@ -89,8 +106,10 @@
                             (dom/div
                              (dom/div
                               (dom/span (dom/text "Id"))
-                              (ui/button (e/fn [] (e/client (goto-page! :rebrickable-part-detail {:rebrickable.part/part-num (first part)})))
-                                         (dom/text (first part))))
+                              (let [part-num (-> part second first :rebrickable.part/part-num)]
+                                (ui/button (e/fn []
+                                             (e/client (goto-page! :rebrickable-part-detail {:rebrickable.part/part-num part-num})))
+                                           (dom/text part-num))))
                              (dom/div
                               (dom/span (dom/text "Color"))
                               (dom/span (dom/text (-> part second first :color/name)))))
@@ -222,7 +241,7 @@
 
           :rebrickable-part-detail
           (LegoPartDetail. (let [state (e/watch !client-state)]
-                             (:rebrickable/id (:page-options state))))
+                             (:rebrickable.part/part-num (:page-options state))))
 
           :owned-set-detail
           (dom/div (dom/span (dom/text "This is the owned set detail view of a selected set.")))))))))
