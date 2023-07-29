@@ -51,12 +51,12 @@ shadow-cljs - nREPL server started on port 9001
 
 {:type :owned-set
  :xt/id (uuid-random)
- :is-of-set internal-set-id ;; :xt/id
+ :is-of-type internal-set-id ;; :xt/id
  :pictures [:picture]}
 
 {:type :owned-part
  :belongs-to internal-set-id (of owned-set)
- :is-of-part internal-part-id
+ :is-of-type internal-part-id
  :xt/id (uuid-random)
  :status #{:part/added :part/missing}}
 
