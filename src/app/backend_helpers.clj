@@ -49,6 +49,7 @@
                                     :rebrickable/name (-> part :part :name)
                                     :rebrickable/url (-> part :part :part_url)
                                     :rebrickable/image-url (-> part :part :part_img_url)
+                                    :rebrickable.part/part-num (-> part :part :part_num)
                                     :part/number (-> part :part :part_num)
                                     :color/id (-> part :color :id)
                                     :color/name (-> part :color :name)}))))
@@ -162,7 +163,7 @@
        #_(map (fn [e] [(key e) (count (val e))]))))
 
 (comment
-  (lego-parts-for-set (xt/db user/!xtdb) #uuid "b1b7a7b3-6407-4dcc-94e8-9e18c2411920"))
+  (lego-parts-for-set (xt/db user/!xtdb) #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a"))
 
 (comment
   ;; Data maintenance and migration functions to be used during development
@@ -187,7 +188,27 @@
                                   (map (fn [e] [::xt/evict e]))
                                   (into []))))
 
-  ; evict all the sets with the id 8062-1
+  ;; evict all the owned-set entities
+  (let [entities (xt/q (xt/db user/!xtdb)
+                       '{:find [?e]
+                         :where [[?e :xt/id]
+                                 [?e :type :owned-set]]})]
+    (xt/submit-tx user/!xtdb (->> entities
+                                  (map first)
+                                  (map (fn [e] [::xt/evict e]))
+                                  (into []))))
+
+  ;; evict all the owned-part entities
+  (let [entities (xt/q (xt/db user/!xtdb)
+                       '{:find [?e]
+                         :where [[?e :xt/id]
+                                 [?e :type :owned-part]]})]
+    (xt/submit-tx user/!xtdb (->> entities
+                                  (map first)
+                                  (map (fn [e] [::xt/evict e]))
+                                  (into []))))
+
+; evict all the sets with the id 8062-1
   (let [entities (xt/q (xt/db user/!xtdb)
                        '{:find [?e]
                          :where [[?e :xt/id]
@@ -210,7 +231,7 @@
                                        (map (fn [p] [::xt/put p]))
                                        (into [])))
          (println "Imported parts for set" (:rebrickable/id (second s)))
-         (Thread/sleep 10000)))))
+         (Thread/sleep 12000)))))
 
   ;; fetch the parts for the set with set-internal-id c17cf01b-eb48-4334-97dc-9efee4a621b1
   (let [sets (xt/q (xt/db user/!xtdb)
@@ -334,3 +355,29 @@
 
 (comment
   (owned-sets-for-set (xt/db user/!xtdb) #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a"))
+
+(defn part-metadata [db rebrickable-part-id]
+  (->> (xt/q db '{:find [(pull ?p [*])]
+                      :in [?rebrickable-id]
+                      :where [[?p :rebrickable/id ?rebrickable-id]]
+                      :limit 1}
+                 rebrickable-part-id)
+           first
+           first))
+
+(comment
+  (part-metadata (xt/db user/!xtdb) 692663);; => [[{:rebrickable/name "Cone 1 x 1 [No Top Groove]", :belongs-to #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a", :rebrickable/image-url "https://cdn.rebrickable.com/media/parts/elements/458926.jpg", :type :part, :rebrickable/id 692663, :rebrickable/element-id "458926", :color/name "Black", :color/id 0, :part/number "4589", :xt/id #uuid "0719694a-3cce-4b19-9b18-2b24a352ee40", :rebrickable/url "https://rebrickable.com/parts/4589/cone-1-x-1-no-top-groove/"}]]
+  )
+
+
+(defn part-occurrence-in-sets [db rebrickable-part-id]
+  (->> (xt/q db '{:find [(pull ?set [:xt/id :rebrickable/name]) (count ?p)]
+                  :in [?rebrickable-id]
+                  :where [[?p :rebrickable/id ?rebrickable-id]
+                          [?p :belongs-to ?set]]}
+             rebrickable-part-id)))
+
+(comment
+  (part-occurrence-in-sets (xt/db user/!xtdb) 692663)
+
+  (part-occurrence-in-sets (xt/db user/!xtdb) 155384))
