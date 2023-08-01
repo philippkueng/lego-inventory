@@ -346,12 +346,35 @@
                                                             :status :part/missing}]))
                                     (into []))))))
 
+(comment
+  ;; how many owned sets and owned parts do we have in the database?
+  (xt/q (xt/db user/!xtdb)
+        '{:find [(count ?os)]
+          :where [[?os :type :owned-set]]})
+
+  )
+
+(defn owned-sets [db]
+  (->> (xt/q db '{:find [os-internal-id s-name s-image-url s-id]
+                  :keys [os-internal-id rebrickable/name rebrickable/image-url rebrickable/id]
+                  :where [[os :type :owned-set]
+                          [os :xt/id os-internal-id]
+                          [os :is-of-type s]
+                          [s :rebrickable/name s-name]
+                          [s :rebrickable/image-url s-image-url]
+                          [s :rebrickable/id s-id]
+                          ]})))
+
+(comment
+  (owned-sets (xt/db user/!xtdb))
+  )
+
 (defn owned-sets-for-set [db set-internal-id]
   (->> (xt/q db '{:find [?os]
                   :in [?set-internal-id]
                   :where [[?os :is-of-type ?set-internal-id]]}
-             set-internal-id)
-       (map first)))
+         set-internal-id)
+    (map first)))
 
 (comment
   (owned-sets-for-set (xt/db user/!xtdb) #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a"))
@@ -418,3 +441,27 @@
 
 ;; yes my suspicion seems to be confirmed that the element-id is the unique id for the mold and color. Furthermore when looking at the available colors on https://rebrickable.com/parts/4589/cone-1-x-1-no-top-groove/ it also seems to add up.
   )
+
+(comment
+  ;; why does the part with :rebrickable.part/part-number "2348b" not have an element id?
+  ;; looking at https://rebrickable.com/parts/2348b/glass-for-hinge-car-roof-4-x-4-sunroof-with-ridges/ I can see 3 colours available
+  ;; but none of them has an element-id - hence I think the easiest might be that if a part is not defined the link button
+  ;; will redirect to a detail view of the part number instead of the part element id.
+  ;; then the part detail view by part number will display a disclaimer that multiple colours might be meant and that the
+  ;; instructions should be consulted.
+
+  )
+
+(comment
+  ;; why are there 2 parts of part number 3024 but listed separately and both with the element id 6252045?
+  (xt/q (xt/db user/!xtdb)
+    '{:find [(pull ?p [*])]
+      :where [[?set :xt/id #uuid "c17cf01b-eb48-4334-97dc-9efee4a621b1"]
+              [?p :belongs-to ?set]
+              [?p :type :part]
+              [?p :rebrickable.part/part-num "3024"]
+              [?p :rebrickable/element-id "6252045"]]})
+  ;; as suspected those parts have differing :rebrickable/id values. No idea why - I'll leave it like this for now
+
+  )
+

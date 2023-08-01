@@ -11,8 +11,10 @@
 (e/def db) ; injected database ref; Electric defs are always dynamic
 
 (def pages #{:rebrickable-sets ;; a view to aid with importing sets from rebrickable
+             ;:rebrickable-parts-by
              :rebrickable-set-detail
              :rebrickable-part-detail ;; given a specific part, show where its being used
+             :owned-sets                                    ;; an overview of the progress
              :owned-set-detail ;; one can see the progress of how many parts are still missing vs have been found
              })
 
@@ -21,7 +23,8 @@
                     #_{:page :rebrickable-part-detail, :page-options {:xt/id #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a"}}
                     #_{:page :rebrickable-set-detail, :page-options {:xt/id #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a"}}
                     #_{:page :rebrickable-part-detail, :page-options {:rebrickable.part/part-num "4589"}}
-                         {:page :rebrickable-set-detail, :page-options {:xt/id #uuid "44246b35-99e1-4f6c-92db-022e5db9df0f"}}
+                         #_{:page :rebrickable-set-detail, :page-options {:xt/id #uuid "44246b35-99e1-4f6c-92db-022e5db9df0f"}}
+                     {:page :rebrickable-part-detail, :page-options {:rebrickable/element-id "6252045"}}
                          #_{:page :rebrickable-part-detail, :page-options {:rebrickable.part/part-num 3294662}}))
 
 (defn goto-page! [page page-options]
@@ -41,6 +44,9 @@
                         (dom/div
                          (dom/span (dom/text "Rebrickable Part Number"))
                          (dom/span (dom/text (:rebrickable.part/part-num part))))
+                       (dom/div
+                         (dom/span (dom/text "Rebrickable Element Id"))
+                         (dom/span (dom/text (:rebrickable/element-id part))))
                         (dom/div
                          (dom/span (dom/text "Rebrickable URL"))
                          (dom/a (dom/props {:href (:rebrickable/url part)})
@@ -190,6 +196,27 @@
   (bh/lego-sets user/db)
   (bh/lego-sets (xt/db user/!xtdb)))
 
+(e/defn OwnedLegoSets []
+  (dom/div
+    (dom/h1 (dom/text "Owned Sets"))
+    (dom/div (dom/props {:class "owned-sets"})
+      (e/for [owned-set (e/server (e/offload #(bh/owned-sets db)))]
+        (dom/div
+          (dom/img (dom/props {:src (:rebrickable/image-url owned-set)}))
+          (dom/div
+            (dom/span (dom/text "Id"))
+            (ui/button (e/fn [] (goto-page! :owned-set-detail {:xt/id (:os-internal-id owned-set)}))
+              (dom/text (:rebrickable/id owned-set))))
+          (dom/div
+            (dom/span (dom/text "Name"))
+            (dom/span (dom/text (:rebrickable/name owned-set))))
+          #_(dom/div
+              (dom/span (dom/text "Part count"))
+              (dom/span (dom/text (str "Distinct: " (e/server (e/offload #(bh/distinct-number-of-parts-of-set db id))))))
+              (dom/span (dom/text (str "Absolut: " (e/server (e/offload #(bh/number-of-parts-of-set db id)))))))))))
+
+  )
+
 (comment
   ;; what are the most occuring parts in the database?
   (->> (xt/q (xt/db user/!xtdb)
@@ -211,7 +238,9 @@
 (e/defn Navigation []
   (e/client
    (dom/div (dom/props {:class "navigation"})
-            (ui/button (e/fn [] (goto-page! :rebrickable-sets nil)) (dom/text "Lego Sets")))))
+            (ui/button (e/fn [] (goto-page! :rebrickable-sets nil)) (dom/text "Lego Sets"))
+            (ui/button (e/fn [] (goto-page! :owned-sets nil)) (dom/text "Owned Sets"))
+     )))
 
 (e/defn Todo-list []
   (e/server
@@ -242,6 +271,8 @@
           :rebrickable-part-detail
           (LegoPartDetail. (let [state (e/watch !client-state)]
                              (:rebrickable/element-id (:page-options state))))
+
+          :owned-sets (OwnedLegoSets.)
 
           :owned-set-detail
           (dom/div (dom/span (dom/text "This is the owned set detail view of a selected set.")))))))))

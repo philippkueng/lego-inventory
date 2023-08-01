@@ -39,6 +39,9 @@ label::first-letter{
 div.navigation {
     padding-bottom: 2rem;
 }
+div.navigation button {
+    margin-right: 1rem;
+}
 
 div.import-set span {
     margin-right: 1rem;
@@ -70,6 +73,24 @@ ul.lego-sets>li>div>div {
 
 ul.lego-sets>li>div>div>span:first-child {
     font-weight: bold;
+}
+
+div.owned-sets>div {
+    display: grid;
+    grid-template-columns: 80px auto 1fr 1fr;
+    justify-content: start;
+    gap: 0 1rem;
+    padding: 0.5rem 0;
+}
+div.owned-sets>div>div {
+    display: grid;
+    grid-template-rows: auto fit-content;
+}
+div.owned-sets>div>div>span:first-child {
+    font-weight: bold;
+}
+div.owned-sets>div>img {
+    width: 80px;
 }
 
 div.lego-set-detail>img {
