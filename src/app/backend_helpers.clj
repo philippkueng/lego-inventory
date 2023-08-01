@@ -369,6 +369,85 @@
   (owned-sets (xt/db user/!xtdb))
   )
 
+(defn owned-set [db owned-set-id]
+  (->> (xt/q db '{:find [owned-set-id
+                         s-name
+                         s-image-url
+                         s-id
+                         s-url]
+                  :keys [owned-set-id
+                         rebrickable/name
+                         rebrickable/image-url
+                         rebrickable/id
+                         rebrickable/url]
+                  :in [owned-set-id]
+                  :where [[os :xt/id owned-set-id]
+                          [os :type :owned-set]
+                          [os :is-of-type s]
+                          [s :rebrickable/name s-name]
+                          [s :rebrickable/image-url s-image-url]
+                          [s :rebrickable/id s-id]
+                          [s :rebrickable/url s-url]
+                          ]}
+         owned-set-id)
+    first))
+
+(comment
+  (owned-set (xt/db user/!xtdb) #uuid "cf4aa957-bc20-4cc7-8a74-92006c41c705")
+
+  )
+
+(defn owned-parts-for-owned-set [db owned-set-id]
+  (->> (xt/q db '{:find [op
+                         p-name
+                         p-image-url
+                         p-id
+                         p-element-id
+                         p-part-number
+                         p-color
+                         p-url
+                         op-status]
+                  :keys [owned-part/id
+                         rebrickable/name
+                         rebrickable/image-url
+                         rebrickable/id
+                         rebrickable/element-id
+                         rebrickable.part/part-num
+                         color/name
+                         rebrickable/url
+                         owned-part/status]
+                  :in [owned-set-id]
+                  :where [[os :xt/id owned-set-id]
+                          [os :type :owned-set]
+                          [op :belongs-to os]
+                          [op :is-of-type p]
+                          [p :rebrickable/name p-name]
+                          [p :rebrickable/image-url p-image-url]
+                          [p :rebrickable/id p-id]
+                          [p :rebrickable/element-id p-element-id]
+                          [p :rebrickable.part/part-num p-part-number]
+                          [p :color/name p-color]
+                          [p :rebrickable/url p-url]
+                          [op :status op-status]
+                          ]
+                  :order-by [[op-status :desc]
+                             [p-color :asc]
+                             [p-part-number :asc]]}
+         owned-set-id)
+   ))
+
+(comment
+  (owned-parts-for-owned-set (xt/db user/!xtdb) #uuid "cf4aa957-bc20-4cc7-8a74-92006c41c705")
+
+  )
+
+(defn change-status-of-owned-part [owned-part-id new-status]
+  (let [op (xt/entity (xt/db user/!xtdb) owned-part-id)]
+    (xt/submit-tx user/!xtdb [[::xt/put (assoc op :status new-status)]])))
+(comment
+  (change-status-of-owned-part #uuid "9c70cd97-96f4-49d9-b00f-9f161773653f" :part/added)
+  )
+
 (defn owned-sets-for-set [db set-internal-id]
   (->> (xt/q db '{:find [?os]
                   :in [?set-internal-id]

@@ -217,6 +217,74 @@
 
   )
 
+(e/defn OwnedLegoSetDetail [page-options]
+  (let [owned-set-id (:xt/id page-options)
+        owned-set (e/server (e/offload #(bh/owned-set db owned-set-id)))]
+    (dom/div (dom/props {:class "lego-set-detail"})
+      (dom/h1 (dom/text (:rebrickable/name owned-set)))
+      (dom/img (dom/props {:src (:rebrickable/image-url owned-set)}))
+      (dom/div (dom/props {:class "attributes-table"})
+        (dom/div
+          (dom/span (dom/text "Internal Id"))
+          (dom/span (dom/text (:owned-set-id owned-set))))
+        (dom/div
+          (dom/span (dom/text "Id"))
+          (dom/span (dom/text (:rebrickable/id owned-set))))
+        (dom/div
+          (dom/span (dom/text "Rebrickable entry"))
+          (dom/a (dom/props {:href (:rebrickable/url owned-set)})
+            (dom/text "link")))
+        #_(dom/div
+          (dom/span (dom/text "Lego Set"))
+          (ui/button (e/fn []
+                       (e/client (goto-page! :rebrickable-set-detail ))))))
+      (dom/h2 (dom/text "Parts of this owned set"))
+      (dom/div (dom/props {:class "part-list"})
+        (e/for [owned-part (e/server (e/offload #(bh/owned-parts-for-owned-set db owned-set-id)))]
+          (dom/div
+            (dom/img (dom/props {:src (-> owned-part :rebrickable/image-url)}))
+            (dom/div
+              (dom/div
+                (dom/span (dom/text "Part Number"))
+                (dom/span (dom/text (-> owned-part :rebrickable.part/part-num))))
+              (dom/div
+                (dom/span (dom/text "Part Element Id"))
+                (let [element-id (-> owned-part :rebrickable/element-id)]
+                  (ui/button (e/fn []
+                               (e/client (goto-page! :rebrickable-part-detail {:rebrickable/element-id element-id})))
+                    (dom/text element-id)))))
+            (dom/div
+              (dom/div
+                (dom/span (dom/text "Name"))
+                (dom/span (dom/text (-> owned-part :rebrickable/name))))
+              (dom/div
+                (dom/span (dom/text "Color"))
+                (dom/span (dom/text (-> owned-part :color/name)))))
+            (dom/div
+              (dom/div
+                (dom/span (dom/text "Status"))
+                (dom/span (dom/text (condp = (-> owned-part :owned-part/status)
+                                      :part/missing "Missing"
+                                      :part/added "Added"))))
+              (dom/div
+                (dom/span (dom/text "Change Status"))
+                (condp = (-> owned-part :owned-part/status)
+                  :part/missing (ui/button (e/fn [] (e/server (e/offload #(bh/change-status-of-owned-part
+                                                                            (-> owned-part :owned-part/id)
+                                                                            :part/added))))
+                                  (dom/text "Add to set"))
+                  :part/added (ui/button (e/fn [] (e/server (e/offload #(bh/change-status-of-owned-part
+                                                                          (-> owned-part :owned-part/id)
+                                                                          :part/missing))))
+                                (dom/text "Mark as missing again")))))
+            #_(dom/div
+              (dom/span (dom/text "Number of pieces"))
+              (dom/span (dom/text (-> part second count))))))
+        #_(e/server
+            (e/for-by :xt/id [{:keys [xt/id]} (e/offload #(bh/lego-sets db))]
+              (LegoSet. id))))
+      #_(dom/pre (dom/text (e/server (pr-str e)))))))
+
 (comment
   ;; what are the most occuring parts in the database?
   (->> (xt/q (xt/db user/!xtdb)
@@ -275,4 +343,5 @@
           :owned-sets (OwnedLegoSets.)
 
           :owned-set-detail
-          (dom/div (dom/span (dom/text "This is the owned set detail view of a selected set.")))))))))
+          (let [state (e/watch !client-state)]
+            (OwnedLegoSetDetail. (:page-options state)))))))))
