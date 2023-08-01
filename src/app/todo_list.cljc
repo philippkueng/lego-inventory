@@ -90,13 +90,13 @@
                                (dom/text "link"))))
               (dom/h2 (dom/text "Owned Sets"))
               (dom/div
-               (e/for [owned-set-id (e/server (e/offload #(bh/owned-sets-for-set db id)))]
+               (e/for [owned-set-id (e/server (bh/owned-sets-for-set db id))]
                  (dom/div
                   (ui/button (e/fn [] (e/client (goto-page! :owned-set-detail {:xt/id owned-set-id})))
                              (dom/text owned-set-id)))))
               (dom/h2 (dom/text "Parts of this set"))
               (dom/div (dom/props {:class "part-list"})
-                       (e/for [part (e/server (e/offload #(bh/lego-parts-for-set db id)))]
+                       (e/for [part (e/server (bh/lego-parts-for-set db id))]
                          (dom/div
                           (dom/img (dom/props {:src (:rebrickable/image-url (-> part second first))}))
                           (dom/div
@@ -104,11 +104,11 @@
                             (dom/span (dom/text "Part Number"))
                             (dom/span (dom/text (-> part second first :rebrickable.part/part-num))))
                            (dom/div
-                             (dom/span (dom/text "Part Element Id"))
-                             (let [element-id (-> part second first :rebrickable/element-id)]
-                               (ui/button (e/fn []
-                                            (e/client (goto-page! :rebrickable-part-detail {:rebrickable/element-id element-id})))
-                                          (dom/text element-id)))))
+                            (dom/span (dom/text "Part Element Id"))
+                            (let [element-id (-> part second first :rebrickable/element-id)]
+                              (ui/button (e/fn []
+                                           (e/client (goto-page! :rebrickable-part-detail {:rebrickable/element-id element-id})))
+                                         (dom/text element-id)))))
                           (dom/div
                            (dom/div
                             (dom/span (dom/text "Name"))
