@@ -162,3 +162,11 @@ div.part-occurrence-in-sets>div>div>span:first-child {
 .count{
     font-size: 1.25rem;
 }
+table {
+    border-collapse: collapse;
+}
+table td {
+    padding: 0.3rem;
+    border-width: 1px;
+    border-style: solid;
+}

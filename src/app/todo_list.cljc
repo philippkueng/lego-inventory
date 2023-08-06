@@ -24,7 +24,9 @@
                     #_{:page :rebrickable-set-detail, :page-options {:xt/id #uuid "2813b8e4-71f1-4bea-84af-66201e5ca55a"}}
                     #_{:page :rebrickable-part-detail, :page-options {:rebrickable.part/part-num "4589"}}
                          #_{:page :rebrickable-set-detail, :page-options {:xt/id #uuid "44246b35-99e1-4f6c-92db-022e5db9df0f"}}
-                     {:page :rebrickable-part-detail, :page-options {:rebrickable/element-id "6252045"}}
+                     #_{:page :rebrickable-part-detail, :page-options {:rebrickable/element-id "6252045"}}
+                     {:page :owned-set-detail, :page-options {:xt/id #uuid "dc9b7524-bc31-4526-ac1e-b3ee0f2ea7a8"}}
+                     #_{:page :rebrickable-parts-by-part-num, :page-options nil}
                          #_{:page :rebrickable-part-detail, :page-options {:rebrickable.part/part-num 3294662}}))
 
 (defn goto-page! [page page-options]
@@ -184,11 +186,15 @@
                               (e/offload
                                #(if (not (bh/is-set-in-database? db v))
                                   (let [set (bh/fetch-set v)
-                                        parts (bh/fetch-parts v (:xt/id set))]
+                                        parts (bh/fetch-parts v (:xt/id set))
+                                        minifigures-and-parts (bh/fetch-minifigure-parts-for-set v (:xt/id set))]
                                     (xt/submit-tx !xtdb [[::xt/put set]])
                                     (xt/submit-tx !xtdb (->> parts
                                                              (map (fn [p] [::xt/put p]))
-                                                             (into []))))
+                                                             (into [])))
+                                    (xt/submit-tx !xtdb (->> minifigures-and-parts
+                                                          (map (fn [p] [::xt/put p]))
+                                                          (into []))))
                                   (println "Set with ID" v "is already in the database."))))))
                           "Rebrickable Set ID..."))))
 
@@ -210,18 +216,38 @@
           (dom/div
             (dom/span (dom/text "Name"))
             (dom/span (dom/text (:rebrickable/name owned-set))))
-          #_(dom/div
-              (dom/span (dom/text "Part count"))
-              (dom/span (dom/text (str "Distinct: " (e/server (e/offload #(bh/distinct-number-of-parts-of-set db id))))))
-              (dom/span (dom/text (str "Absolut: " (e/server (e/offload #(bh/number-of-parts-of-set db id)))))))))))
-
-  )
+          (dom/div
+            (dom/span (dom/text "Tracking"))
+            (e/server
+              (let [e (xt/entity db (:os-internal-id owned-set))
+                    eid-str (bh/uuid->str (:xt/id e))
+                    instructions-bagged (:instructions-bagged e)
+                    instructions-bagged-id (str eid-str "_instructions_bagged")
+                    sticker-on-bag (:sticker-on-bag e)
+                    sticker-on-bag-id (str eid-str "_sticker_on_bag")]
+                (e/client
+                  (dom/div
+                    (ui/checkbox instructions-bagged
+                      (e/fn [v]
+                        (e/server (xt/submit-tx !xtdb [[::xt/put (assoc e :instructions-bagged v)]]))
+                        nil)
+                      (dom/props {:id instructions-bagged-id}))
+                    (dom/label (dom/props {:for instructions-bagged-id})
+                      (dom/text "instructions put in bag")))
+                  (dom/div
+                    (ui/checkbox sticker-on-bag
+                      (e/fn [v]
+                        (e/server (xt/submit-tx !xtdb [[::xt/put (assoc e :sticker-on-bag v)]]))
+                        nil)
+                      (dom/props {:id sticker-on-bag-id}))
+                    (dom/label (dom/props {:for sticker-on-bag-id})
+                      (dom/text "sticker on bag"))))))))))))
 
 (e/defn OwnedLegoSetDetail [page-options]
   (let [owned-set-id (:xt/id page-options)
         owned-set (e/server (e/offload #(bh/owned-set db owned-set-id)))]
     (dom/div (dom/props {:class "lego-set-detail"})
-      (dom/h1 (dom/text (:rebrickable/name owned-set)))
+      (dom/h1 (dom/text "Owned: " (:rebrickable/name owned-set)))
       (dom/img (dom/props {:src (:rebrickable/image-url owned-set)}))
       (dom/div (dom/props {:class "attributes-table"})
         (dom/div
@@ -229,57 +255,59 @@
           (dom/span (dom/text (:owned-set-id owned-set))))
         (dom/div
           (dom/span (dom/text "Id"))
-          (dom/span (dom/text (:rebrickable/id owned-set))))
+          (ui/button (e/fn []
+                       (e/client (goto-page! :rebrickable-set-detail {:xt/id (:internal-lego-set-id owned-set)})))
+            (dom/text (:rebrickable/id owned-set))))
         (dom/div
           (dom/span (dom/text "Rebrickable entry"))
           (dom/a (dom/props {:href (:rebrickable/url owned-set)})
-            (dom/text "link")))
-        #_(dom/div
-          (dom/span (dom/text "Lego Set"))
-          (ui/button (e/fn []
-                       (e/client (goto-page! :rebrickable-set-detail ))))))
+            (dom/text "link"))))
       (dom/h2 (dom/text "Parts of this owned set"))
       (dom/div (dom/props {:class "part-list"})
-        (e/for [owned-part (e/server (e/offload #(bh/owned-parts-for-owned-set db owned-set-id)))]
-          (dom/div
-            (dom/img (dom/props {:src (-> owned-part :rebrickable/image-url)}))
-            (dom/div
+        (e/server
+          (e/for [owned-part (e/server (e/offload #(bh/owned-parts-for-owned-set db owned-set-id)))]
+            (e/client
               (dom/div
-                (dom/span (dom/text "Part Number"))
-                (dom/span (dom/text (-> owned-part :rebrickable.part/part-num))))
-              (dom/div
-                (dom/span (dom/text "Part Element Id"))
-                (let [element-id (-> owned-part :rebrickable/element-id)]
-                  (ui/button (e/fn []
-                               (e/client (goto-page! :rebrickable-part-detail {:rebrickable/element-id element-id})))
-                    (dom/text element-id)))))
-            (dom/div
-              (dom/div
-                (dom/span (dom/text "Name"))
-                (dom/span (dom/text (-> owned-part :rebrickable/name))))
-              (dom/div
-                (dom/span (dom/text "Color"))
-                (dom/span (dom/text (-> owned-part :color/name)))))
-            (dom/div
-              (dom/div
-                (dom/span (dom/text "Status"))
-                (dom/span (dom/text (condp = (-> owned-part :owned-part/status)
-                                      :part/missing "Missing"
-                                      :part/added "Added"))))
-              (dom/div
-                (dom/span (dom/text "Change Status"))
-                (condp = (-> owned-part :owned-part/status)
-                  :part/missing (ui/button (e/fn [] (e/server (e/offload #(bh/change-status-of-owned-part
-                                                                            (-> owned-part :owned-part/id)
-                                                                            :part/added))))
-                                  (dom/text "Add to set"))
-                  :part/added (ui/button (e/fn [] (e/server (e/offload #(bh/change-status-of-owned-part
-                                                                          (-> owned-part :owned-part/id)
-                                                                          :part/missing))))
-                                (dom/text "Mark as missing again")))))
-            #_(dom/div
-              (dom/span (dom/text "Number of pieces"))
-              (dom/span (dom/text (-> part second count))))))
+                (dom/img (dom/props {:src (-> owned-part :rebrickable/image-url)}))
+                (dom/div
+                  (dom/div
+                    (dom/span (dom/text "Part Number"))
+                    (dom/span (dom/text (-> owned-part :rebrickable.part/part-num))))
+                  (dom/div
+                    (dom/span (dom/text "Part Element Id"))
+                    (let [element-id (-> owned-part :rebrickable/element-id)]
+                      (ui/button (e/fn []
+                                   (e/client (goto-page! :rebrickable-part-detail {:rebrickable/element-id element-id})))
+                        (dom/text element-id)))))
+                (dom/div
+                  (dom/div
+                    (dom/span (dom/text "Name"))
+                    (dom/span (dom/text (-> owned-part :rebrickable/name))))
+                  (dom/div
+                    (dom/span (dom/text "Color"))
+                    (dom/span (dom/text (-> owned-part :color/name)))))
+                (dom/div
+                  (dom/div
+                    (dom/span (dom/text "Status"))
+                    (dom/span (dom/text (condp = (-> owned-part :owned-part/status)
+                                          :part/missing "Missing"
+                                          :part/added "Added"))))
+                  (dom/div
+                    (dom/span (dom/text "Change Status"))
+                    (condp = (-> owned-part :owned-part/status)
+                      :part/missing (ui/button (e/fn [] (e/server (e/offload #(bh/change-status-of-owned-part
+                                                                                (-> owned-part :owned-part/id)
+                                                                                :part/added))))
+                                      (dom/text "Add to set"))
+                      :part/added (ui/button (e/fn [] (e/server (e/offload #(bh/change-status-of-owned-part
+                                                                              (-> owned-part :owned-part/id)
+                                                                              :part/missing))))
+                                    (dom/text "Mark as missing again")))))
+                #_(dom/div
+                    (dom/span (dom/text "Number of pieces"))
+                    (dom/span (dom/text (-> part second count))))))
+
+            ))
         #_(e/server
             (e/for-by :xt/id [{:keys [xt/id]} (e/offload #(bh/lego-sets db))]
               (LegoSet. id))))
@@ -308,6 +336,8 @@
    (dom/div (dom/props {:class "navigation"})
             (ui/button (e/fn [] (goto-page! :rebrickable-sets nil)) (dom/text "Lego Sets"))
             (ui/button (e/fn [] (goto-page! :owned-sets nil)) (dom/text "Owned Sets"))
+            (ui/button (e/fn [] (goto-page! :rebrickable-parts-by-part-num nil)) (dom/text "Lego Parts (by part number)"))
+            (ui/button (e/fn [] (goto-page! :rebrickable-parts-by-element-id nil)) (dom/text "Lego Parts (by element id)"))
      )))
 
 (e/defn Todo-list []
@@ -333,15 +363,63 @@
                                (LegoSet. id))))))
 
           :rebrickable-set-detail
-          (LegoSetDetail. (let [state (e/watch !client-state)]
-                            (:xt/id (:page-options state))))
+          (LegoSetDetail. (:xt/id (:page-options state)))
 
           :rebrickable-part-detail
-          (LegoPartDetail. (let [state (e/watch !client-state)]
-                             (:rebrickable/element-id (:page-options state))))
+          (LegoPartDetail. (:rebrickable/element-id (:page-options state)))
 
           :owned-sets (OwnedLegoSets.)
 
           :owned-set-detail
-          (let [state (e/watch !client-state)]
-            (OwnedLegoSetDetail. (:page-options state)))))))))
+          (OwnedLegoSetDetail. (:page-options state))
+
+          :rebrickable-parts-by-part-num
+          (dom/div
+            (dom/h1 (dom/text "Lego parts by part number"))
+            (let [!search (atom "")
+                  search (e/watch !search)]
+              (ui/input search (e/fn [v] (reset! !search v))
+                (dom/props {:type "search" :placeholder "part number..."}))
+
+              (e/server
+                (e/for [metadata (e/offload #(bh/part-metadata-by-part-number db search))]
+                  (e/client
+                    (dom/h1 (dom/text (-> metadata :rebrickable/name)))
+                    (dom/img (dom/props {:width 100 :src (-> metadata :rebrickable/image-url)})) )))
+
+              (dom/table
+                (dom/tbody
+                  (dom/tr
+                    (dom/th (dom/text "part number"))
+                    (dom/th (dom/text "element id"))
+                    (dom/th (dom/text "colour"))
+                    (dom/th (dom/text "set id"))
+                    (dom/th (dom/text "set name"))
+                    (dom/th (dom/text "status"))
+                    (dom/th (dom/text "add/remove!"))
+                    )
+                  (e/server
+                    (e/for [part (e/offload #(bh/owned-parts-by-part-number db search))]
+                      (e/client
+                        (dom/tr
+                          (dom/td (dom/text (-> part :rebrickable.part/part-num)))
+                          (dom/td (dom/text (-> part :rebrickable/element-id)))
+                          (dom/td (dom/text (-> part :color/name)))
+                          (dom/td (ui/button (e/fn []
+                                               (e/client (goto-page! :rebrickable-set-detail {:xt/id (-> part :set-internal-id)})))
+                                    (dom/text (-> part :set-rebrickable-id))))
+                          (dom/td (dom/text (-> part :set-rebrickable-name)))
+                          (dom/td (dom/text (-> part :owned-part/status)))
+                          (dom/td
+                            (condp = (-> part :owned-part/status)
+                              :part/missing (ui/button (e/fn [] (e/server (e/offload #(bh/change-status-of-owned-part
+                                                                                        (-> part :owned-part/id)
+                                                                                        :part/added))))
+                                              (dom/text "Add to set"))
+                              :part/added (ui/button (e/fn [] (e/server (e/offload #(bh/change-status-of-owned-part
+                                                                                      (-> part :owned-part/id)
+                                                                                      :part/missing))))
+                                            (dom/text "Mark as missing again"))))
+                          ))))))
+
+              ))))))))

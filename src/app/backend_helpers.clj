@@ -5,6 +5,10 @@
 (defonce api-url "https://rebrickable.com/api/v3/lego")
 (defonce api-key (System/getenv "REBRICKABLE_API_KEY"))
 
+(defn uuid->str
+  [uuid]
+  (.toString uuid))
+
 (defn fetch-set [id]
   (-> (client/get
        (format "%s/sets/%s/" api-url id)
@@ -24,6 +28,10 @@
           :rebrickable/theme-id (:theme_id body)
           :rebrickable/image-url (:set_img_url body)}))))
 
+(comment
+  (fetch-set "8062-1")
+
+  )
 (defn fetch-parts [id internal-set-id]
   (let [results (atom [])
         done (atom false)
@@ -52,11 +60,13 @@
                                     :rebrickable.part/part-num (-> part :part :part_num)
                                     :part/number (-> part :part :part_num)
                                     :color/id (-> part :color :id)
-                                    :color/name (-> part :color :name)}))))
+                                    :color/name (-> part :color :name)
+                                    :is-spare (:is_spare part)}))))
          flatten)))
 
 (comment
   (count (fetch-parts "8062-1" "my-id"))
+  (filter #(= true (:is-spare %)) (fetch-parts "6649-1" "my-id"))
 ;; => 410
 
   (xt/q (xt/db user/!xtdb)
@@ -84,6 +94,84 @@
        (map :rebrickable/id)
        distinct
        count))
+
+(defn fetch-minifigures [id internal-set-id]
+  (let [results (atom [])
+        done (atom false)
+        url (atom (format "%s/sets/%s/minifigs" api-url id))
+        options {:accept :json
+                 :content-type :json
+                 :as :json
+                 :headers {:Authorization (format "key %s" api-key)}}]
+    (while (not @done)
+      (let [response (client/get @url options)]
+        (reset! results (concat @results (-> response :body :results)))
+        (if-let [next (-> response :body :next)]
+          (reset! url next)
+          (reset! done true))))
+    (->> @results
+      (map (fn [minifigure]
+             (repeatedly (:quantity minifigure)
+               (fn [] {:type :minifigure
+                       :xt/id (random-uuid)
+                       :belongs-to internal-set-id
+                       :rebrickable/id (:id minifigure)
+                       :rebrickable/name (-> minifigure :set_name)
+                       :rebrickable.minifigure/set-num (-> minifigure :set_num)
+                       :rebrickable/image-url (-> minifigure :set_img_url)
+                       }))))
+      flatten)))
+(defn fetch-minifigure-parts [minifigure-set-num internal-set-id internal-minifigure-id]
+  (let [results (atom [])
+        done (atom false)
+        url (atom (format "%s/minifigs/%s/parts" api-url minifigure-set-num))
+        options {:accept :json
+                 :content-type :json
+                 :as :json
+                 :headers {:Authorization (format "key %s" api-key)}}]
+    (while (not @done)
+      (let [response (client/get @url options)]
+        (reset! results (concat @results (-> response :body :results)))
+        (if-let [next (-> response :body :next)]
+          (reset! url next)
+          (reset! done true))))
+    (->> @results
+      (map (fn [part]
+             (repeatedly (:quantity part)
+               (fn [] {:type :part
+                       :xt/id (random-uuid)
+                       :belongs-to internal-set-id
+                       :part-of-minifigure internal-minifigure-id
+                       :rebrickable/id (:id part)
+                       :rebrickable/element-id (:element_id part) ;; why are some element-id values nil?
+                       :rebrickable/name (-> part :part :name)
+                       :rebrickable/url (-> part :part :part_url)
+                       :rebrickable/image-url (-> part :part :part_img_url)
+                       :rebrickable.part/part-num (-> part :part :part_num)
+                       :color/id (-> part :color :id)
+                       :color/name (-> part :color :name)
+                       :is-spare (:is_spare part)
+                       :rebrickable.minifigure/set-num (-> part :set_num)
+                       }))))
+      flatten)))
+
+(defn fetch-minifigure-parts-for-set [id internal-set-id]
+  (let [minifigures (fetch-minifigures id internal-set-id)
+        parts (->> minifigures
+                (map #(fetch-minifigure-parts
+                        (:rebrickable.minifigure/set-num %)
+                        internal-set-id
+                        (:xt/id %)))
+                (cons minifigures)
+                (apply concat))]
+    parts))
+(comment
+  (fetch-minifigures "6268-1" "some-id")
+  (fetch-minifigure-parts "fig-005149" "some-internal-set-id" "some-internal-minifigure-id")
+
+  (fetch-minifigure-parts-for-set "6268-1" "some-id")
+
+  )
 
 (defn is-set-in-database? [db rebrickable-id]
   (>= (count (xt/q db '{:find [?e]
@@ -154,7 +242,8 @@
 (defn lego-parts-for-set [db id]
   (->> (xt/q db '{:find [(pull ?p [*])]
                   :in [?set-id]
-                  :where [[?p :belongs-to ?set-id]]}
+                  :where [[?p :belongs-to ?set-id]
+                          [?p :type :part]]}
              id)
        (map first)
        (group-by :rebrickable/id)
@@ -226,12 +315,17 @@
                              [?e :type :set]]})]
     (doall
      (doseq [s sets]
-       (let [parts (fetch-parts (:rebrickable/id (second s)) (first s))]
+       (let [parts (fetch-parts (:rebrickable/id (second s)) (first s))
+             minifigures-and-parts (fetch-minifigure-parts-for-set (:rebrickable/id (second s)) (first s))]
          (xt/submit-tx user/!xtdb (->> parts
                                        (map (fn [p] [::xt/put p]))
                                        (into [])))
+         (xt/submit-tx user/!xtdb (->> minifigures-and-parts
+                                    (map (fn [p] [::xt/put p]))
+                                    (into [])))
          (println "Imported parts for set" (:rebrickable/id (second s)))
-         (Thread/sleep 12000)))))
+         (Thread/sleep 20000)))
+      (println "All parts and minifigures have been imported")))
 
   ;; fetch the parts for the set with set-internal-id c17cf01b-eb48-4334-97dc-9efee4a621b1
   (let [sets (xt/q (xt/db user/!xtdb)
@@ -247,7 +341,25 @@
                                        (map (fn [p] [::xt/put p]))
                                        (into [])))
          (println "Imported parts for set" (:rebrickable/id (second s)))
-         (Thread/sleep 10000))))))
+         (Thread/sleep 10000)))))
+
+  ;; fetch the minifigures and parts for the set with the set-internal-id c17cf01b-eb48-4334-97dc-9efee4a621b1
+  (let [sets (xt/q (xt/db user/!xtdb)
+               '{:find [?e (pull ?e [:rebrickable/id])]
+                 :in [?e]
+                 :where [[?e :xt/id]
+                         [?e :type :set]]}
+               #uuid "c17cf01b-eb48-4334-97dc-9efee4a621b1")]
+    (doall
+      (doseq [s sets]
+        (let [minifigures-and-parts (fetch-minifigure-parts-for-set (:rebrickable/id (second s)) (first s))]
+          (xt/submit-tx user/!xtdb (->> minifigures-and-parts
+                                     (map (fn [p] [::xt/put p]))
+                                     (into [])))
+          (println "Imported minifigure parts for set" (:rebrickable/id (second s)))
+          (Thread/sleep 10000)))
+      (println "done importing")))
+  )
 
 (defn number-of-sets [db]
   (->> (xt/q db
@@ -324,6 +436,38 @@
 
   )
 
+(defn- create-an-owned-set-for-a-set [set-internal-id]
+  (let [db (xt/db user/!xtdb)]
+    (let [parts (xt/q db '{:find [?p]
+                           :in [?set-internal-id]
+                           :where [[?p :belongs-to ?set-internal-id]
+                                   [?p :type :part]]}
+                  set-internal-id)
+          owned-set-id (random-uuid)]
+      (xt/submit-tx user/!xtdb [[::xt/put {:xt/id owned-set-id
+                                           :type :owned-set
+                                           :is-of-type set-internal-id}]])
+      (xt/submit-tx user/!xtdb (->> parts
+                                 (map (fn [p] [::xt/put {:xt/id (random-uuid)
+                                                         :type :owned-part
+                                                         :belongs-to owned-set-id
+                                                         :is-of-type p
+                                                         :status :part/missing}]))
+                                 (into []))))))
+
+(comment
+  ;; create an owned set for each set and create all the owned parts for all the parts associated to a given set.
+  (doall (doseq [set-internal-id (->> (xt/q (xt/db user/!xtdb)
+                                        '{:find [s]
+                                          :where [[s :type :set]]})
+                                   (map first))]
+           (create-an-owned-set-for-a-set set-internal-id)))
+
+
+
+
+  )
+
 (comment
   ;; add an owned entity for a given set and create owned-parts for all the parts of the set too to keep track of the still missing and added parts.
 
@@ -363,7 +507,8 @@
                           [s :rebrickable/name s-name]
                           [s :rebrickable/image-url s-image-url]
                           [s :rebrickable/id s-id]
-                          ]})))
+                          ]
+                  :order-by [[s-id :asc]]})))
 
 (comment
   (owned-sets (xt/db user/!xtdb))
@@ -374,12 +519,14 @@
                          s-name
                          s-image-url
                          s-id
-                         s-url]
+                         s-url
+                         s-internal-id]
                   :keys [owned-set-id
                          rebrickable/name
                          rebrickable/image-url
                          rebrickable/id
-                         rebrickable/url]
+                         rebrickable/url
+                         internal-lego-set-id]
                   :in [owned-set-id]
                   :where [[os :xt/id owned-set-id]
                           [os :type :owned-set]
@@ -388,6 +535,7 @@
                           [s :rebrickable/image-url s-image-url]
                           [s :rebrickable/id s-id]
                           [s :rebrickable/url s-url]
+                          [s :xt/id s-internal-id]
                           ]}
          owned-set-id)
     first))
@@ -498,8 +646,79 @@
 
   )
 
+(defn owned-parts-by-part-number [db part-number]
+  (->> (xt/q db '{:find [op
+                         p-name
+                         p-id
+                         p-element-id
+                         p-part-number
+                         p-color
+                         op-status
+                         s-name
+                         s-id
+                         s-internal-id]
+                  :keys [owned-part/id
+                         rebrickable/name
+                         rebrickable/id
+                         rebrickable/element-id
+                         rebrickable.part/part-num
+                         color/name
+                         owned-part/status
+                         set-rebrickable-name
+                         set-rebrickable-id
+                         set-internal-id]
+                  :in [part-number]
+                  :where [[p :rebrickable.part/part-num part-number]
+                          [op :is-of-type p]
+                          [op :belongs-to os]
+                          [p :belongs-to s]
+                          [p :rebrickable/name p-name]
+                          [p :rebrickable/id p-id]
+                          [p :rebrickable/element-id p-element-id]
+                          [p :rebrickable.part/part-num p-part-number]
+                          [p :color/name p-color]
+                          [op :status op-status]
+                          [s :rebrickable/name s-name]
+                          [s :rebrickable/id s-id]
+                          [s :xt/id s-internal-id]
+                          ]
+                  :order-by [[op-status :desc]
+                             [p-color :asc]
+                             [s-id :asc]
+                             ]}
+         part-number)
+    ))
+
 (comment
-;; figuring out how the :rebrickable.part/part-num and the :rebrickable/id are to be understood with part entities
+  (owned-parts-by-part-number (xt/db user/!xtdb) "2452")
+  (count (owned-parts-by-part-number (xt/db user/!xtdb) "2452"))
+  (count (owned-parts-by-part-number (xt/db user/!xtdb) "3001"))
+
+  )
+
+(defn part-metadata-by-part-number [db part-number]
+  (->> (xt/q db '{:find [p-name
+                         p-image-url
+                         p-part-number]
+                  :keys [rebrickable/name
+                         rebrickable/image-url
+                         rebrickable.part/part-num]
+                  :in [part-number]
+                  :where [[p :rebrickable.part/part-num part-number]
+                          [op :belongs-to os]
+                          [p :rebrickable/name p-name]
+                          [p :rebrickable/image-url p-image-url]
+                          [p :rebrickable.part/part-num p-part-number]]
+                  :limit 1}
+         part-number)
+    ))
+
+(comment
+  (part-metadata-by-part-number (xt/db user/!xtdb) "3001")
+  )
+
+(comment
+  ;; figuring out how the :rebrickable.part/part-num and the :rebrickable/id are to be understood with part entities
   (xt/q (xt/db user/!xtdb)
         '{:find [(pull ?p [:rebrickable.part/part-num :rebrickable/id :color/name :rebrickable/element-id])]
           :where [[?p :type :part]
@@ -544,3 +763,56 @@
 
   )
 
+(comment
+  ;; what kind of parts are occuring most often
+  (xt/q (xt/db user/!xtdb)
+    '{:find [part-number (count p)]
+      :where [[p :type :part]
+              [p :rebrickable.part/part-num part-number]]
+      :limit 20
+      :order-by [[(count p) :desc]]})
+  ;=>
+  ;[["2780" 1247]
+  ; ["3023" 1215]
+  ; ["6141" 904]
+  ; ["3004" 861]
+  ; ["3710" 724]
+  ; ["3666" 547]
+  ; ["3713" 525]
+  ; ["4265b" 513]
+  ; ["3749" 511]
+  ; ["3024" 508]
+  ; ["3005" 489]
+  ; ["3062b" 455]
+  ; ["3623" 444]
+  ; ["6536" 426]
+  ; ["2420" 421]
+  ; ["3022" 415]
+  ; ["3700" 402]
+  ; ["32062" 389]
+  ; ["3705" 387]
+  ; ["6558" 368]]
+  )
+
+(comment
+  ;; there any entities in the database which aren't of :type :set?
+  (xt/q (xt/db user/!xtdb)
+    '{:find [e]
+      :where [[e :xt/id]
+              [(not [e :type :set])]]})
+  ;; => #{}
+  ;; after clearing all the parts, owned-sets and owned-parts I got nothing but sets in the database
+
+  )
+
+(comment
+  ;; testing the tracking of steps on owned sets eg. whether the instructions have been put into the bag
+  (xt/q (xt/db user/!xtdb)
+    '{:find [(pull e [*])]
+      :where [[e :xt/id #uuid "f40736ac-d04d-4452-83c3-3513b44405be"]]})
+
+  ;; marking this set as having had its instructions put into the bag
+  (xt/submit-tx user/!xtdb [[::xt/put (assoc (xt/entity (xt/db user/!xtdb) #uuid "f40736ac-d04d-4452-83c3-3513b44405be")
+                                        :instructions-bagged true)]])
+
+  )

@@ -35,6 +35,7 @@ shadow-cljs - nREPL server started on port 9001
  :belongs-to internal-set-id ;; :xt/id
  ;; :lego/id "6020" ;; it's just the mold - there's still the color component which the id doesn't include
  :rebrickable/element-id "524523"
+ :rebrickable.part/part-name ""
  ;;:rebrickable/id "6020"
  :rebrickable/url "https://rebrickable.com/parts/6020/bar-7-x-3-with-double-clips-ladder/" ;; just entering the URL without the name at the end will also find it
  :rebrickable/name "LEGO PART 6020 Bar 7 x 3 with Double Clips (Ladder)"
@@ -100,3 +101,30 @@ Eg. I'll create a group for a small race car and a fire engine. Then I look at a
   - [x] delete their associated parts
   - [x] and re-fetch them with a proper sleep in between the calls
 - [x] re-add this 8062-1 manually
+- [ ] import all the minifigs for all the sets
+
+
+- while searching for the parts for set with id 6649 I found that there's a part with `:rebrickable.part/part-num` 2498 which doesn't have an element id. Why is that? https://rebrickable.com/parts/2498/street-sweeper-brush/ is the associated URL for this part - it seems that the color "Medium Blue" doesn't have an element-id while the other colours do.
+
+- why is it that in the part list of 6649 some of the parts (which are identical) are listed individually rather than grouped together? is the `:rebrickable/id` different? why? eg. part with number 3024 and element id 6252045
+
+- and why are the people not part of the set parts? (eg. for set 6649?) - looking at the url for the set I see that the figure is listed separately https://rebrickable.com/sets/6649-1/street-sweeper/?inventory=1#parts
+
+when we make a call to `https://rebrickable.com/api/v3/lego/sets/6649-1/minifigs/` (API) then we're getting this response for the minifigure
+
+```json
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 4617,
+      "set_num": "fig-000725",
+      "set_name": "Man, Blue Jacket with Zipper, Blue Legs, Red Cap, Sunglasses",
+      "quantity": 1,
+      "set_img_url": "https://cdn.rebrickable.com/media/sets/fig-000725/65594.jpg"
+    }
+  ]
+}
+```
