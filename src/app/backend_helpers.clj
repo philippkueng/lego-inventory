@@ -556,7 +556,7 @@
                           [s :xt/id s-internal-id]
                           [os :name os-name]
                           ]
-                  :order-by [[s-id :asc]]})))
+                  :order-by [[os-name :asc]]})))
 
 (defn completion-ratio-for-owned-set [db os-internal-id]
   (let [number-of-parts (->> (xt/q db
