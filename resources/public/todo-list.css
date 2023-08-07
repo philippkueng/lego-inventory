@@ -80,14 +80,25 @@ div.owned-sets>div {
     grid-template-columns: 80px auto 1fr 1fr;
     justify-content: start;
     gap: 0 1rem;
-    padding: 0.5rem 0;
+    padding: 1rem 0;
 }
-div.owned-sets>div>div {
+div.owned-sets>div>div, div.owned-sets>div>div>div {
     display: grid;
     grid-template-rows: auto fit-content;
 }
-div.owned-sets>div>div>span:first-child {
+div.owned-sets>div>div>div {
+    margin-bottom: 0.5rem;
+}
+div.owned-sets>div>div.tracking>div {
+    display: block;
+    margin-bottom: 0;
+}
+div.owned-sets>div>div.tracking>div label {
+    font-weight: normal;
+}
+div.owned-sets>div>div>span:first-child, div.owned-sets>div>div>div>span:first-child {
     font-weight: bold;
+    display: block;
 }
 div.owned-sets>div>img {
     width: 80px;
@@ -161,6 +172,10 @@ div.part-occurrence-in-sets>div>div>span:first-child {
 
 .count{
     font-size: 1.25rem;
+}
+
+.add-new-owned-set-button {
+    margin-top: 1rem;
 }
 table {
     border-collapse: collapse;

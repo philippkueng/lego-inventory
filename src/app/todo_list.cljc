@@ -98,10 +98,16 @@
                                (dom/text "link"))))
               (dom/h2 (dom/text "Owned Sets"))
               (dom/div
-               (e/for [owned-set-id (e/server (bh/owned-sets-for-set db id))]
+               (e/for [owned-set (e/server (bh/owned-sets-for-set db id))]
                  (dom/div
-                  (ui/button (e/fn [] (e/client (goto-page! :owned-set-detail {:xt/id owned-set-id})))
-                             (dom/text owned-set-id)))))
+                  (ui/button (e/fn [] (e/client (goto-page! :owned-set-detail {:xt/id (first owned-set)})))
+                             (dom/text (second owned-set))))))
+              (dom/div (dom/props {:class "add-new-owned-set-button"})
+                (ui/button
+                  (e/fn [] (e/server
+                             (bh/create-an-owned-set-for-a-set id)
+                             nil))
+                  (dom/text "Add another owned set")))
               (dom/h2 (dom/text "Parts of this set"))
               (dom/div (dom/props {:class "part-list"})
                        (e/for [part (e/server (bh/lego-parts-for-set db id))]
@@ -210,13 +216,22 @@
         (dom/div
           (dom/img (dom/props {:src (:rebrickable/image-url owned-set)}))
           (dom/div
-            (dom/span (dom/text "Id"))
-            (ui/button (e/fn [] (goto-page! :owned-set-detail {:xt/id (:os-internal-id owned-set)}))
-              (dom/text (:rebrickable/id owned-set))))
+            (dom/div
+              (dom/span (dom/text "Set Id"))
+              (ui/button (e/fn [] (goto-page! :rebrickable-set-detail {:xt/id (:s-internal-id owned-set)}))
+                (dom/text (:rebrickable/id owned-set))))
+            (dom/div
+              (dom/span (dom/text "Owned Set Id"))
+              (ui/button (e/fn [] (goto-page! :owned-set-detail {:xt/id (:os-internal-id owned-set)}))
+                (dom/text (:os-name owned-set)))))
           (dom/div
-            (dom/span (dom/text "Name"))
-            (dom/span (dom/text (:rebrickable/name owned-set))))
-          (dom/div
+            (dom/div
+              (dom/span (dom/text "Name"))
+              (dom/span (dom/text (:rebrickable/name owned-set))))
+            (dom/div
+              (dom/span (dom/text "Completion"))
+              (dom/span (dom/text (e/server (e/offload #(bh/completion-ratio-for-owned-set db (:os-internal-id owned-set))))))))
+          (dom/div (dom/props {:class "tracking"})
             (dom/span (dom/text "Tracking"))
             (e/server
               (let [e (xt/entity db (:os-internal-id owned-set))
@@ -253,6 +268,9 @@
         (dom/div
           (dom/span (dom/text "Internal Id"))
           (dom/span (dom/text (:owned-set-id owned-set))))
+        (dom/div
+          (dom/span (dom/text "Owned Set Name"))
+          (dom/span (dom/text (:owned-set-name owned-set))))
         (dom/div
           (dom/span (dom/text "Id"))
           (ui/button (e/fn []
@@ -337,7 +355,6 @@
             (ui/button (e/fn [] (goto-page! :rebrickable-sets nil)) (dom/text "Lego Sets"))
             (ui/button (e/fn [] (goto-page! :owned-sets nil)) (dom/text "Owned Sets"))
             (ui/button (e/fn [] (goto-page! :rebrickable-parts-by-part-num nil)) (dom/text "Lego Parts (by part number)"))
-            (ui/button (e/fn [] (goto-page! :rebrickable-parts-by-element-id nil)) (dom/text "Lego Parts (by element id)"))
      )))
 
 (e/defn Todo-list []
