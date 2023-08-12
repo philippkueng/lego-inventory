@@ -600,8 +600,15 @@
                           [s :rebrickable/id s-id]
                           [s :xt/id s-internal-id]
                           [os :name os-name]
+                          [op :belongs-to os]
+                          [op :type :owned-part]
                           ]
                   :order-by [[os-name :asc]]})))
+
+(comment
+  (->> (owned-sets (xt/db user/!xtdb))
+    first)
+  )
 
 (defn completion-ratio-for-owned-set [db os-internal-id]
   (let [number-of-parts (->> (xt/q db
@@ -630,10 +637,11 @@
                                            first
                                            :number-of-parts)]
                                 n
-                                0)]
-    (->> (/ number-of-parts-added (/ number-of-parts 100))
-      double
-      (format "%.2f %%"))))
+                                0)
+        number-of-parts-missing (- number-of-parts number-of-parts-added)
+        ratio (->> (/ number-of-parts-added (/ number-of-parts 100))
+                double)]
+    (format "%.2f %% - %s parts missing" ratio number-of-parts-missing)))
 (comment
   (owned-sets (xt/db user/!xtdb))
 

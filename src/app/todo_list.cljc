@@ -210,53 +210,60 @@
 
 (e/defn OwnedLegoSets []
   (dom/div
-    (dom/h1 (dom/text "Owned Sets"))
-    (dom/div (dom/props {:class "owned-sets"})
-      (e/for [owned-set (e/server (e/offload #(bh/owned-sets db)))]
-        (dom/div
-          (dom/img (dom/props {:src (:rebrickable/image-url owned-set)}))
-          (dom/div
-            (dom/div
-              (dom/span (dom/text "Set Id"))
-              (ui/button (e/fn [] (goto-page! :rebrickable-set-detail {:xt/id (:s-internal-id owned-set)}))
-                (dom/text (:rebrickable/id owned-set))))
-            (dom/div
-              (dom/span (dom/text "Owned Set Id"))
-              (ui/button (e/fn [] (goto-page! :owned-set-detail {:xt/id (:os-internal-id owned-set)}))
-                (dom/text (:os-name owned-set)))))
-          (dom/div
-            (dom/div
-              (dom/span (dom/text "Name"))
-              (dom/span (dom/text (:rebrickable/name owned-set))))
-            (dom/div
-              (dom/span (dom/text "Completion"))
-              (dom/span (dom/text (e/server (e/offload #(bh/completion-ratio-for-owned-set db (:os-internal-id owned-set))))))))
-          (dom/div (dom/props {:class "tracking"})
-            (dom/span (dom/text "Tracking"))
-            (e/server
-              (let [e (xt/entity db (:os-internal-id owned-set))
-                    eid-str (bh/uuid->str (:xt/id e))
-                    instructions-bagged (:instructions-bagged e)
-                    instructions-bagged-id (str eid-str "_instructions_bagged")
-                    sticker-on-bag (:sticker-on-bag e)
-                    sticker-on-bag-id (str eid-str "_sticker_on_bag")]
-                (e/client
+    (e/server
+      (let [owned-sets (bh/owned-sets db)]
+        (e/client
+          (dom/h1 (dom/text (str (count owned-sets) " owned Sets with " (->> (map :op-count owned-sets)
+                                                                          (reduce +)) " parts")))
+          (dom/div (dom/props {:class "owned-sets"})
+            (e/for [owned-set owned-sets]
+              (dom/div
+                (dom/img (dom/props {:src (:rebrickable/image-url owned-set)}))
+                (dom/div
                   (dom/div
-                    (ui/checkbox instructions-bagged
-                      (e/fn [v]
-                        (e/server (xt/submit-tx !xtdb [[::xt/put (assoc e :instructions-bagged v)]]))
-                        nil)
-                      (dom/props {:id instructions-bagged-id}))
-                    (dom/label (dom/props {:for instructions-bagged-id})
-                      (dom/text "instructions put in bag")))
+                    (dom/span (dom/text "Set Id"))
+                    (ui/button (e/fn [] (goto-page! :rebrickable-set-detail {:xt/id (:s-internal-id owned-set)}))
+                      (dom/text (:rebrickable/id owned-set))))
                   (dom/div
-                    (ui/checkbox sticker-on-bag
-                      (e/fn [v]
-                        (e/server (xt/submit-tx !xtdb [[::xt/put (assoc e :sticker-on-bag v)]]))
-                        nil)
-                      (dom/props {:id sticker-on-bag-id}))
-                    (dom/label (dom/props {:for sticker-on-bag-id})
-                      (dom/text "sticker on bag"))))))))))))
+                    (dom/span (dom/text "Owned Set Id"))
+                    (ui/button (e/fn [] (goto-page! :owned-set-detail {:xt/id (:os-internal-id owned-set)}))
+                      (dom/text (:os-name owned-set)))))
+                (dom/div
+                  (dom/div
+                    (dom/span (dom/text "Name"))
+                    (dom/span (dom/text (:rebrickable/name owned-set))))
+                  (dom/div
+                    (dom/span (dom/text "Part count"))
+                    (dom/span (dom/text (:op-count owned-set))))
+                  (dom/div
+                    (dom/span (dom/text "Completion"))
+                    (dom/span (dom/text (e/server (e/offload #(bh/completion-ratio-for-owned-set db (:os-internal-id owned-set))))))))
+                (dom/div (dom/props {:class "tracking"})
+                  (dom/span (dom/text "Tracking"))
+                  (e/server
+                    (let [e (xt/entity db (:os-internal-id owned-set))
+                          eid-str (bh/uuid->str (:xt/id e))
+                          instructions-bagged (:instructions-bagged e)
+                          instructions-bagged-id (str eid-str "_instructions_bagged")
+                          sticker-on-bag (:sticker-on-bag e)
+                          sticker-on-bag-id (str eid-str "_sticker_on_bag")]
+                      (e/client
+                        (dom/div
+                          (ui/checkbox instructions-bagged
+                            (e/fn [v]
+                              (e/server (xt/submit-tx !xtdb [[::xt/put (assoc e :instructions-bagged v)]]))
+                              nil)
+                            (dom/props {:id instructions-bagged-id}))
+                          (dom/label (dom/props {:for instructions-bagged-id})
+                            (dom/text "instructions put in bag")))
+                        (dom/div
+                          (ui/checkbox sticker-on-bag
+                            (e/fn [v]
+                              (e/server (xt/submit-tx !xtdb [[::xt/put (assoc e :sticker-on-bag v)]]))
+                              nil)
+                            (dom/props {:id sticker-on-bag-id}))
+                          (dom/label (dom/props {:for sticker-on-bag-id})
+                            (dom/text "sticker on bag")))))))))))))))
 
 (e/defn OwnedLegoSetDetail [page-options]
   (let [owned-set-id (:xt/id page-options)
