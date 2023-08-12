@@ -590,8 +590,8 @@
   )
 
 (defn owned-sets [db]
-  (->> (xt/q db '{:find [os-internal-id os-name s-internal-id s-name s-image-url s-id]
-                  :keys [os-internal-id os-name s-internal-id rebrickable/name rebrickable/image-url rebrickable/id]
+  (->> (xt/q db '{:find [os-internal-id os-name s-internal-id s-name s-image-url s-id (count op)]
+                  :keys [os-internal-id os-name s-internal-id rebrickable/name rebrickable/image-url rebrickable/id op-count]
                   :where [[os :type :owned-set]
                           [os :xt/id os-internal-id]
                           [os :is-of-type s]
