@@ -173,6 +173,51 @@
 
   )
 
+(defn fetch-themes []
+  (let [results (atom [])
+        done (atom false)
+        url (atom (format "%s/themes" api-url))
+        options {:accept :json
+                 :content-type :json
+                 :as :json
+                 :headers {:Authorization (format "key %s" api-key)}}]
+    (while (not @done)
+      (let [response (client/get @url options)]
+        (reset! results (concat @results (-> response :body :results)))
+        (if-let [next (-> response :body :next)]
+          (reset! url next)
+          (reset! done true))))
+    (->> @results
+      (map (fn [theme]
+             {:type :theme
+              :xt/id (random-uuid)
+              :rebrickable/id (:id theme)
+              :rebrickable/parent-id (:parent_id theme)
+              :rebrickable/name (-> theme :name)}))
+      flatten)))
+(comment
+  ;; https://rebrickable.com/api/v3/lego/themes/?page_size=1000
+  ;{
+  ; "id": 3,
+  ; "parent_id": 1,
+  ; "name": "Competition"
+  ; }
+
+  (take 10 (fetch-themes))
+  (count (fetch-themes))
+
+  ;; fetch and insert themes into our database
+  (xt/submit-tx user/!xtdb (->> (fetch-themes)
+                             (map (fn [p] [::xt/put p]))
+                             (into [])))
+
+  ;; ensure we inserted all the themes
+  (xt/q (xt/db user/!xtdb)
+    '{:find [(count e)]
+      :where [[e :type :theme]]})
+  ;; => #{[466]}
+  )
+
 (defn is-set-in-database? [db rebrickable-id]
   (>= (count (xt/q db '{:find [?e]
                         :in [?rebrickable-id]
