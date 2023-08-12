@@ -102,7 +102,8 @@ Eg. I'll create a group for a small race car and a fire engine. Then I look at a
   - [x] and re-fetch them with a proper sleep in between the calls
 - [x] re-add this 8062-1 manually
 - [x] import all the minifigs for all the sets
-- [ ] import categories so we can have filters, like exclude Lego Technic
+- [x] import categories so we can have filters, like exclude Lego Technic
+- [x] link from the part in the owned-set-detail view to a pre-selected filter of the lego parts by number view
 
 
 - while searching for the parts for set with id 6649 I found that there's a part with `:rebrickable.part/part-num` 2498 which doesn't have an element id. Why is that? https://rebrickable.com/parts/2498/street-sweeper-brush/ is the associated URL for this part - it seems that the color "Medium Blue" doesn't have an element-id while the other colours do.
