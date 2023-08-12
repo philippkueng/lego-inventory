@@ -1023,3 +1023,85 @@
                                         :instructions-bagged true)]])
 
   )
+
+
+(comment
+  (def !client-state (atom {:page-options {:search "test"}}))
+  (swap! !client-state assoc-in [:page-options :search] "test2")
+
+  )
+
+(comment
+  ;; I've now bagged and labelled all the bags for which I got instructions
+  ;; an owned set which got labelled and bagged
+  (xt/entity (xt/db user/!xtdb) #uuid "79e0421b-ee6b-466e-ae4d-729d6d4874b5")
+
+
+  ;; Which owned sets are there are not bagged and labelled?
+  (xt/q (xt/db user/!xtdb)
+    '{:find [e name]
+      :where [[e :type :owned-set]
+              (not-join [e]
+                   [e :instructions-bagged true])
+              [e :is-of-type set]
+              [set :rebrickable/name name]]})
+  ;=>
+  ;#{[#uuid"150b4121-4ffd-4fd1-95b8-868f9f28ad58" "Airtech Claw Rig"]
+  ;  [#uuid"d1eea757-87d8-46da-a2c2-92d7406ccfa9" "Supersonic Car"]
+  ;  [#uuid"be6560fa-c356-4354-8dde-7b4e5b224475" "Space Shuttle"]
+  ;  [#uuid"329d6cf8-c551-43b9-814c-33f2acb5e540" "CyberMaster"]
+  ;  [#uuid"e9b8740a-1ee9-4160-be83-a27d131647d8" "Barcode Multi-Set"]}
+
+  ;; remove an owned-set and its owned-parts
+  (let [owned-set-id #uuid "be6560fa-c356-4354-8dde-7b4e5b224475"]
+    (let [owned-parts (xt/q (xt/db user/!xtdb)
+                        '{:find [op]
+                          :in [os]
+                          :where [[op :xt/id]
+                                  [op :type :owned-part]
+                                  [op :belongs-to os]]}
+                        owned-set-id)]
+      (xt/submit-tx user/!xtdb (->> owned-parts
+                                 (map first)
+                                 (map (fn [e] [::xt/evict e]))
+                                 (into [])))
+      (xt/submit-tx user/!xtdb [[::xt/evict owned-set-id]])))
+  )
+
+(comment
+  ;; how many parts have been added so far?
+
+  (xt/q (xt/db user/!xtdb)
+    '{:find [(count op)]
+      :where [[op :type :owned-part]
+              [op :status :part/added]]})
+  )
+
+(comment
+
+  ;; get the themes of a particular owned-set
+  (xt/q (xt/db user/!xtdb)
+    '{:find [(pull s [*])
+             (pull t [*])]
+      :where [[os :xt/id #uuid "703daad1-f2ef-4812-912d-d8f0d8f019f5"]
+              [os :is-of-type s]
+              [s :rebrickable/theme-id theme-id]
+              [t :rebrickable/id theme-id]]})
+
+
+  ;; how many themes do we have all in all?
+  (xt/q (xt/db user/!xtdb)
+    '{:find [(count t)]
+      :where [[t :type :theme]]})
+  ;; => #{[466]}
+
+  ;; how many of those are the top themes?
+  (xt/q (xt/db user/!xtdb)
+    '{:find [(count t)]
+      :where [[t :type :theme]
+              [t :rebrickable/parent-id nil]]})
+  ;; => #{[144]}
+
+  ;; what is the maximum depth of the graph?
+
+  )
