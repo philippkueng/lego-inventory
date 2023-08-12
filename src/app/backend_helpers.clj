@@ -863,7 +863,8 @@
                          op-status
                          s-name
                          s-id
-                         s-internal-id]
+                         s-internal-id
+                         os-name]
                   :keys [owned-part/id
                          rebrickable/name
                          rebrickable/id
@@ -873,7 +874,8 @@
                          owned-part/status
                          set-rebrickable-name
                          set-rebrickable-id
-                         set-internal-id]
+                         set-internal-id
+                         owned-set/name]
                   :in [part-number]
                   :where [[p :rebrickable.part/part-num part-number]
                           [op :is-of-type p]
@@ -888,11 +890,9 @@
                           [s :rebrickable/name s-name]
                           [s :rebrickable/id s-id]
                           [s :xt/id s-internal-id]
-                          ]
-                  :order-by [[op-status :desc]
-                             [p-color :asc]
-                             [s-id :asc]
-                             ]}
+                          [os :name os-name]]
+                  :order-by [[p-color :asc]
+                             [s-id :asc]]}
          part-number)
     ))
 

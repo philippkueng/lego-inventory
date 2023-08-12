@@ -290,7 +290,10 @@
                 (dom/div
                   (dom/div
                     (dom/span (dom/text "Part Number"))
-                    (dom/span (dom/text (-> owned-part :rebrickable.part/part-num))))
+                    (let [part-num (-> owned-part :rebrickable.part/part-num)]
+                      (ui/button (e/fn []
+                                   (e/client (goto-page! :rebrickable-parts-by-part-num {:search part-num})))
+                        (dom/text part-num))))
                   (dom/div
                     (dom/span (dom/text "Part Element Id"))
                     (let [element-id (-> owned-part :rebrickable/element-id)]
@@ -393,9 +396,8 @@
           :rebrickable-parts-by-part-num
           (dom/div
             (dom/h1 (dom/text "Lego parts by part number"))
-            (let [!search (atom "")
-                  search (e/watch !search)]
-              (ui/input search (e/fn [v] (reset! !search v))
+            (let [search (-> state :page-options :search)]
+              (ui/input search (e/fn [v] (swap! !client-state assoc-in [:page-options :search] v))
                 (dom/props {:type "search" :placeholder "part number..."}))
 
               (e/server
@@ -411,6 +413,7 @@
                     (dom/th (dom/text "element id"))
                     (dom/th (dom/text "colour"))
                     (dom/th (dom/text "set id"))
+                    (dom/th (dom/text "owned set name"))
                     (dom/th (dom/text "set name"))
                     (dom/th (dom/text "status"))
                     (dom/th (dom/text "add/remove!"))
@@ -425,18 +428,25 @@
                           (dom/td (ui/button (e/fn []
                                                (e/client (goto-page! :rebrickable-set-detail {:xt/id (-> part :set-internal-id)})))
                                     (dom/text (-> part :set-rebrickable-id))))
+                          (dom/td (dom/text (-> part :owned-set/name)))
                           (dom/td (dom/text (-> part :set-rebrickable-name)))
                           (dom/td (dom/text (-> part :owned-part/status)))
                           (dom/td
-                            (condp = (-> part :owned-part/status)
-                              :part/missing (ui/button (e/fn [] (e/server (e/offload #(bh/change-status-of-owned-part
-                                                                                        (-> part :owned-part/id)
-                                                                                        :part/added))))
-                                              (dom/text "Add to set"))
-                              :part/added (ui/button (e/fn [] (e/server (e/offload #(bh/change-status-of-owned-part
-                                                                                      (-> part :owned-part/id)
-                                                                                      :part/missing))))
-                                            (dom/text "Mark as missing again"))))
-                          ))))))
-
-              ))))))))
+                            (e/server
+                              (let [eid-str (bh/uuid->str (:owned-part/id part))
+                                    status (condp = (-> part :owned-part/status)
+                                             :part/missing false
+                                             :part/added true)
+                                    status-id (str eid-str "_status")]
+                                (e/client
+                                  (ui/checkbox status
+                                    (e/fn [v]
+                                      (e/server (e/offload #(bh/change-status-of-owned-part
+                                                              (-> part :owned-part/id)
+                                                              (condp = v
+                                                                true :part/added
+                                                                false :part/missing))))
+                                      nil)
+                                    (dom/props {:id status-id}))
+                                  (dom/label (dom/props {:for status-id})
+                                    (dom/text "added to bag"))))))))))))))))))))
