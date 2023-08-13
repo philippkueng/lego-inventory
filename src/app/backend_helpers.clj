@@ -1113,3 +1113,87 @@
   ;; what is the maximum depth of the graph?
 
   )
+
+(comment
+  ;; figure out how many parts have been added per day
+  (let [internal-set-id #uuid "703daad1-f2ef-4812-912d-d8f0d8f019f5"]
+    (xt/q (xt/db user/!xtdb)
+      '{:find [op start-time]
+        :in [internal-set-id]
+        :where [[os :xt/id internal-set-id]
+                [op :belongs-to os]
+                [op :status :part/added]
+                [(get-start-valid-time op) start-time]]}
+      internal-set-id))
+
+  (xt/entity (xt/db user/!xtdb)
+    #uuid"0882fadc-4da3-41e0-9acb-b85452880289")
+  ;=>
+  ;{:type :owned-part,
+  ; :belongs-to #uuid"703daad1-f2ef-4812-912d-d8f0d8f019f5",
+  ; :is-of-type [#uuid"02d3ae1d-9842-40de-b958-74bc03d51e4c"],
+  ; :status :part/added,
+  ; :xt/id #uuid"0882fadc-4da3-41e0-9acb-b85452880289"}
+
+  (xt/entity-tx (xt/db user/!xtdb)
+    #uuid"0882fadc-4da3-41e0-9acb-b85452880289")
+  ;=>
+  ;{:xt/id #xtdb/id"032f9b7219df4460f9a0b29328dde3c1b5b43a4d",
+  ; :xtdb.api/content-hash #xtdb/id"e4a24277c237981b71c19589ba25ea395182e697",
+  ; :xtdb.api/valid-time #inst"2023-08-11T20:04:45.588-00:00",
+  ; :xtdb.api/tx-time #inst"2023-08-11T20:04:45.588-00:00",
+  ; :xtdb.api/tx-id 2918}
+
+  )
+
+(comment
+  ;; how many different parts (part-num) do we have in the database?
+  (->> (xt/q (xt/db user/!xtdb)
+         '{:find [part-num (count op)]
+           :where [[p :type :part]
+                   [p :rebrickable.part/part-num part-num]
+                   [op :is-of-type p]]
+           :order-by [[(count op) :desc]]})
+    (count))
+  ;; => 2047
+
+  (->> (xt/q (xt/db user/!xtdb)
+         '{:find [part-num (count op)]
+           :where [[p :type :part]
+                   [p :rebrickable.part/part-num part-num]
+                   [op :is-of-type p]]
+           :order-by [[(count op) :desc]]})
+    (take 10))
+  ;=>
+  ;(["2780" 1173]
+  ; ["3023" 1150]
+  ; ["6141" 972]
+  ; ["3004" 876]
+  ; ["3710" 699]
+  ; ["3666" 535]
+  ; ["3024" 531]
+  ; ["3749" 517]
+  ; ["3005" 501]
+  ; ["3062b" 474])
+
+  ;; how many parts don't have a part-num? - it seems that all the parts in the database have a number in string form.
+  (->> (xt/q (xt/db user/!xtdb)
+         '{:find [(pull p [*])]
+           :where [[p :type :part]]})
+    (map first)
+    (map :rebrickable.part/part-num)
+    (sort)
+    (take 10))
+
+  (->> (xt/q (xt/db user/!xtdb)
+         '{:find [(count op)]
+           :where [[p :type :part]
+                   [p :rebrickable.part/part-num nil]
+                   [op :is-of-type p]]}))
+
+  (->> (xt/q (xt/db user/!xtdb)
+         '{:find [(count op)]
+           :where [[p :type :part]
+                   (not-join [p] [p :rebrickable.part/part-num])
+                   [op :is-of-type p]]}))
+  )
