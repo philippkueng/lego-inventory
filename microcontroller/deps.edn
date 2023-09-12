@@ -1,0 +1,2 @@
+{:deps {org.clojure/clojurescript {:mvn/version "1.10.764"}
+        esprit/esprit {:mvn/version "1.0.0"}}}
