@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="microcontroller repl" type="ClojureREPL" factoryName="Local" activateToolWindowBeforeRun="false">
+    <option name="configVersion" value="1" />
+    <option name="displayName" value="microcontroller repl" />
+    <option name="execution" value="DEPS" />
+    <module name="microcontroller" />
+    <option name="options" value="-A:repl" />
+    <option name="profiles" />
+    <option name="replType" value="CLOJURE_MAIN" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/microcontroller" />
+    <method v="2" />
+  </configuration>
+</component>

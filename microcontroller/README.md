@@ -13,7 +13,7 @@ clj -M -m esprit.flash --flash out/main.bin
 Create a REPL connection to the controller and toggle the blue LED on the board.
 
 ```
-➜  microcontroller git:(master) ✗ clj -M -m cljs.main -re esprit -ro '{:endpoint-address "192.168.2.249"}' -r
+➜  microcontroller git:(master) ✗ clj -M -m cljs.main -re esprit -ro '{:endpoint-address "192.168.0.249"}' -r
 
 Connecting to ESP32 WROVER ...
 
