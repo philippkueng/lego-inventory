@@ -4,7 +4,9 @@
 
 * forked from https://github.com/hyperfiddle/electric-xtdb-starter
 * Adapted from [xtdb-in-a-box](https://github.com/xtdb/xtdb-in-a-box)
-* Requires env var `XTDB_ENABLE_BYTEUTILS_SHA1=true`
+* Note: `XTDB_ENABLE_BYTEUTILS_SHA1=true` env var is required!
+* See documentation at https://github.com/hyperfiddle/electric-starter-app
+
 
 ```
 $ REBRICKABLE_API_KEY=the-key XTDB_ENABLE_BYTEUTILS_SHA1=true clj -A:dev -X user/main
