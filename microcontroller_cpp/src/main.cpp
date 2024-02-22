@@ -13,6 +13,9 @@ int myFunction(int, int);
 
 void setup() {
   Serial.begin(115200);
+  pinMode(5, OUTPUT);
+  digitalWrite(5, HIGH);
+
   // Connect Wifi, restart if not connecting
   // https://techoverflow.net/2021/01/21/how-to-fix-esp32-not-connecting-to-the-wifi-network/
   WiFi.begin("network-name", "network-password");
@@ -37,6 +40,28 @@ void setup() {
       json["ip"] = WiFi.localIP().toString();
       serializeJson(json, *response);
       request->send(response);
+  });
+
+  server.on("/api/start", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    DynamicJsonDocument json(1024);
+    json["status"] = "ok";
+    json["message"] = "started";
+    digitalWrite(5, LOW);
+    Serial.println("turned LED on");
+    serializeJson(json, *response);
+    request->send(response);
+  });
+
+  server.on("/api/stop", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    DynamicJsonDocument json(1024);
+    json["status"] = "ok";
+    json["message"] = "stopped";
+    digitalWrite(5, HIGH);
+    Serial.println("turned LED off");
+    serializeJson(json, *response);
+    request->send(response);
   });
 
   // Start webserver
