@@ -11,10 +11,28 @@ AsyncWebServer server(80);
 // put function declarations here:
 int myFunction(int, int);
 
+int ONBOARD_LED = 5;
+
+// copied from https://www.makerguides.com/esp32-and-tb6600-stepper-motor-driver
+int PUL = 25; //define Pulse pin
+int DIR = 26; //define Direction pin
+int ENA = 27; //define Enable Pin
+bool STEPPER_MOTOR_ON = false;
+
 void setup() {
   Serial.begin(115200);
-  pinMode(5, OUTPUT);
-  digitalWrite(5, HIGH);
+
+  // initializing the LED
+  pinMode(ONBOARD_LED, OUTPUT);
+  digitalWrite(ONBOARD_LED, HIGH);
+
+  // initialize the stepper motor
+  pinMode(PUL, OUTPUT);
+  pinMode(DIR, OUTPUT);
+  pinMode(ENA, OUTPUT);
+  digitalWrite(PUL, LOW);
+  digitalWrite(DIR, LOW);
+  digitalWrite(ENA, LOW);
 
   // Connect Wifi, restart if not connecting
   // https://techoverflow.net/2021/01/21/how-to-fix-esp32-not-connecting-to-the-wifi-network/
@@ -47,8 +65,9 @@ void setup() {
     DynamicJsonDocument json(1024);
     json["status"] = "ok";
     json["message"] = "started";
-    digitalWrite(5, LOW);
+    digitalWrite(ONBOARD_LED, LOW);
     Serial.println("turned LED on");
+    STEPPER_MOTOR_ON = true;
     serializeJson(json, *response);
     request->send(response);
   });
@@ -58,8 +77,9 @@ void setup() {
     DynamicJsonDocument json(1024);
     json["status"] = "ok";
     json["message"] = "stopped";
-    digitalWrite(5, HIGH);
+    digitalWrite(ONBOARD_LED, HIGH);
     Serial.println("turned LED off");
+    STEPPER_MOTOR_ON = false;
     serializeJson(json, *response);
     request->send(response);
   });
@@ -69,7 +89,10 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  if (STEPPER_MOTOR_ON == true) {
+    digitalWrite(PUL, !digitalRead(PUL));
+    delayMicroseconds(50);
+  }
 }
 
 // put function definitions here:
