@@ -5,15 +5,25 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
+#include <ESP32Servo.h>
 
 AsyncWebServer server(80);
 
 // put function declarations here:
 int myFunction(int, int);
 
-int ONBOARD_LED = 5;
+constexpr int ONBOARD_LED = 5;
 
 // copied from https://www.makerguides.com/esp32-and-tb6600-stepper-motor-driver
+constexpr int PUL = 25; //define Pulse pin
+constexpr int DIR = 26; //define Direction pin
+constexpr int ENA = 27; //define Enable Pin
+bool steppeMotorOn = false;
+long stepperMotorPreviousMicroseconds = 0;        // will store last time the stepper motor was updated
+long stepperMotorInterval = 50; // microseconds
+
+constexpr int SERVO_PIN = 13; // ESP32 pin GPIO13 connected to servo motor
+Servo servoMotor;
 int PUL = 25; //define Pulse pin
 int DIR = 26; //define Direction pin
 int ENA = 27; //define Enable Pin
@@ -33,6 +43,8 @@ void setup() {
   digitalWrite(PUL, LOW);
   digitalWrite(DIR, LOW);
   digitalWrite(ENA, LOW);
+
+  servoMotor.attach(SERVO_PIN);  // attaches the servo on ESP32 pin
 
   // Connect Wifi, restart if not connecting
   // https://techoverflow.net/2021/01/21/how-to-fix-esp32-not-connecting-to-the-wifi-network/
@@ -67,7 +79,7 @@ void setup() {
     json["message"] = "started";
     digitalWrite(ONBOARD_LED, LOW);
     Serial.println("turned LED on");
-    STEPPER_MOTOR_ON = true;
+    steppeMotorOn = true;
     serializeJson(json, *response);
     request->send(response);
   });
@@ -79,7 +91,7 @@ void setup() {
     json["message"] = "stopped";
     digitalWrite(ONBOARD_LED, HIGH);
     Serial.println("turned LED off");
-    STEPPER_MOTOR_ON = false;
+    steppeMotorOn = false;
     serializeJson(json, *response);
     request->send(response);
   });
@@ -89,9 +101,13 @@ void setup() {
 }
 
 void loop() {
-  if (STEPPER_MOTOR_ON == true) {
+  unsigned long currentMicroseconds = micros();
+  if (steppeMotorOn == true && (currentMicroseconds - stepperMotorPreviousMicroseconds) > stepperMotorInterval) {
+    // save the last time we triggered
+    stepperMotorPreviousMicroseconds = currentMicroseconds;
+
+    // trigger the stepper motor
     digitalWrite(PUL, !digitalRead(PUL));
-    delayMicroseconds(50);
   }
 }
 
