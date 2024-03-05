@@ -105,7 +105,7 @@
               (dom/div (dom/props {:class "add-new-owned-set-button"})
                 (ui/button
                   (e/fn [] (e/server
-                             (bh/create-an-owned-set-for-a-set id)
+                             (bh/create-an-owned-set-for-a-set !xtdb id)
                              nil))
                   (dom/text "Add another owned set")))
               (dom/h2 (dom/text "Parts of this set"))
@@ -327,10 +327,12 @@
                       (dom/span (dom/text "Change Status"))
                       (condp = (-> owned-part :owned-part/status)
                         :part/missing (ui/button (e/fn [] (e/server (e/offload #(bh/change-status-of-owned-part
+                                                                                  !xtdb
                                                                                   (-> owned-part :owned-part/id)
                                                                                   :part/added))))
                                         (dom/text "Add to set"))
                         :part/added (ui/button (e/fn [] (e/server (e/offload #(bh/change-status-of-owned-part
+                                                                                !xtdb
                                                                                 (-> owned-part :owned-part/id)
                                                                                 :part/missing))))
                                       (dom/text "Mark as missing again")))))
@@ -452,6 +454,7 @@
                                   (ui/checkbox status
                                     (e/fn [v]
                                       (e/server (e/offload #(bh/change-status-of-owned-part
+                                                              !xtdb
                                                               (-> part :owned-part/id)
                                                               (condp = v
                                                                 true :part/added
