@@ -23,8 +23,8 @@ java/.project
 .vscode/
 *.~undo-tree~
 .DS_Store
-/data/
-/resources/public/js/
-/.shadow-cljs/
-/.clj-kondo/
+/index/data/
+/index/resources/public/js/
+/*/.shadow-cljs/
+/*/.clj-kondo/
 /.idea/

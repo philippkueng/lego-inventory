@@ -65,6 +65,11 @@
       flatten)))
 
 (comment
+  (xt/entity (xt/db user/!xtdb)
+    #uuid "54a95585-761c-4a00-a53a-26734347946f")
+  )
+
+(comment
   (count (fetch-parts "8062-1" "my-id"))
   (filter #(= true (:is-spare %)) (fetch-parts "6649-1" "my-id"))
   ;; => 410

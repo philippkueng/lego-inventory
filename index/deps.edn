@@ -25,7 +25,7 @@
  {:dev
   {:extra-deps
    {binaryage/devtools {:mvn/version "1.0.6"}
-    thheller/shadow-cljs {:mvn/version "2.22.10"}}
+    thheller/shadow-cljs {:mvn/version "2.26.2"}}
    :jvm-opts
    ["-Xss2m" ; https://github.com/hyperfiddle/photon/issues/11
     "-Dclojure.tools.logging.factory=clojure.tools.logging.impl/slf4j-factory"
@@ -34,7 +34,18 @@
     "-XX:+UnlockDiagnosticVMOptions"
     "-XX:+DebugNonSafepoints"]
    :exec-fn user/main
-   :exec-args {}}}
+   :exec-args {}}
+
+  :build
+  ;; use `clj -X:build build-client`, NOT -T! build/app classpath contamination cannot be prevented
+  {:extra-paths ["src-build"]
+   :ns-default  build
+   :extra-deps
+   {thheller/shadow-cljs          {:mvn/version "2.26.2"}
+    io.github.clojure/tools.build {:mvn/version "0.9.6"
+                                   :exclusions  [com.google.guava/guava ; Guava version conflict between tools.build and clojurescript.
+                                                 org.slf4j/slf4j-nop    ; clashes with app logger
+                                                 ]}}}}
  :jvm-opts ["-Dclojure.tools.logging.factory=clojure.tools.logging.impl/slf4j-factory"
             ;; the following option is required for JDK 16 and 17:
             ;; https://github.com/xtdb/xtdb/issues/1462
