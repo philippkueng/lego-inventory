@@ -496,8 +496,8 @@
     (#(nth % (count existing-names)))
     (str rebrickable-name "-")))
 (defn create-an-owned-set-for-a-set [set-internal-id]
-  (let [db (xt/db user/!xtdb)]
-    (let [_ (xt/sync user/!xtdb)                            ;; wait for the index to catch up
+  #_(let [db (xt/db app.fiddles/!xtdb-node)]
+    (let [_ (xt/sync app.fiddles/!xtdb-node)                            ;; wait for the index to catch up
           other-owned-set-names (->> (xt/q db '{:find [name]
                                                 :in [set-internal-id]
                                                 :where [[os :is-of-type set-internal-id]
@@ -511,13 +511,13 @@
                                    [?p :type :part]]}
                   set-internal-id)
           owned-set-id (random-uuid)]
-      (xt/submit-tx user/!xtdb [[::xt/put {:xt/id owned-set-id
+      (xt/submit-tx app.fiddles/!xtdb-node [[::xt/put {:xt/id owned-set-id
                                            :type :owned-set
                                            :is-of-type set-internal-id
                                            :name (generate-owned-set-name
                                                    (:rebrickable/id (xt/entity db set-internal-id))
                                                    other-owned-set-names)}]])
-      (xt/submit-tx user/!xtdb (->> parts
+      (xt/submit-tx app.fiddles/!xtdb-node (->> parts
                                  (map (fn [p] [::xt/put {:xt/id (random-uuid)
                                                          :type :owned-part
                                                          :belongs-to owned-set-id
@@ -809,7 +809,7 @@
   )
 
 (defn change-status-of-owned-part [owned-part-id new-status]
-  (let [op (xt/entity (xt/db user/!xtdb) owned-part-id)]
+  #_(let [op (xt/entity (xt/db user/!xtdb) owned-part-id)]
     (xt/submit-tx user/!xtdb [[::xt/put (assoc op :status new-status)]])))
 (comment
   (change-status-of-owned-part #uuid "9c70cd97-96f4-49d9-b00f-9f161773653f" :part/added)

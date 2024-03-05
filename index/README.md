@@ -9,7 +9,7 @@
 
 
 ```
-$ REBRICKABLE_API_KEY=the-key XTDB_ENABLE_BYTEUTILS_SHA1=true clj -A:dev -X user/main
+$ REBRICKABLE_API_KEY=the-key XTDB_ENABLE_BYTEUTILS_SHA1=true clj -A:dev:app
 
 Starting Electric compiler and server...
 shadow-cljs - server version: 2.20.1 running at http://localhost:9630

@@ -1,40 +1,47 @@
 ;; Start a REPL with env var XTDB_ENABLE_BYTEUTILS_SHA1=true
-{:paths ["src" "resources"]
+{:paths ["src" "resources" "src-contrib"]
  :deps
- {ch.qos.logback/logback-classic {:mvn/version "1.2.11"}
-  ;com.google.guava/guava {:mvn/version "31.1-jre"} ; force guava to latest to fix shadow issue
-  com.hyperfiddle/electric {:mvn/version "v2-alpha-422-g96e5c0a5"}
-  com.hyperfiddle/rcf {:mvn/version "20220926-202227"}
-  com.xtdb/xtdb-core {:mvn/version "1.24.3"}
-  com.xtdb/xtdb-rocksdb {:mvn/version "1.24.3"}
-  info.sunng/ring-jetty9-adapter
-  {:mvn/version "0.14.3" ; (Jetty 9) is Java 8 compatible;
-   ;:mvn/version "0.17.7" ; (Jetty 10) is NOT Java 8 compatible
-   :exclusions [org.slf4j/slf4j-api info.sunng/ring-jetty9-adapter-http3]} ; no need
-  missionary/missionary {:mvn/version "b.31"}
-  org.clojure/clojure {:mvn/version "1.12.0-alpha4"}
-  org.clojure/clojurescript {:mvn/version "1.11.60"}
+ {;com.google.guava/guava {:mvn/version "31.1-jre"} ; force guava to latest to fix shadow issue
+  com.hyperfiddle/electric {:git/url "https://github.com/hyperfiddle/electric" :git/sha "0cfb98429f0e9b4cb7822173d55d1498ce2dd972"}
+  com.hyperfiddle/rcf {:git/url "https://github.com/hyperfiddle/rcf" :git/sha "7105b43231140de6f2f39ce38611c9f6c9dfc976"}
+  org.clojure/clojure {:mvn/version "1.12.0-alpha5"}
+  org.clojure/clojurescript {:mvn/version "1.11.121"}
   org.clojure/tools.logging {:mvn/version "1.2.4"}
+  ch.qos.logback/logback-classic {:mvn/version "1.4.14"}
   org.slf4j/slf4j-api {:mvn/version "1.7.30"}
-  ring-basic-authentication/ring-basic-authentication {:mvn/version "1.1.1"}
+  ring/ring-core                 {:mvn/version "1.11.0"} ; no hard-coded HTTP server, specified in :dev, :prod, :jetty, :httpkit aliases
+  ring-basic-authentication/ring-basic-authentication {:mvn/version "1.2.0"}
   cheshire/cheshire {:mvn/version "5.11.0"}
   clj-http/clj-http {:mvn/version "3.12.3"}
   metosin/malli {:mvn/version "0.11.0"}}
 
  :aliases
  {:dev
-  {:extra-deps
-   {binaryage/devtools {:mvn/version "1.0.6"}
-    thheller/shadow-cljs {:mvn/version "2.26.2"}}
+  {:extra-paths   ["src-dev"]
+   :extra-deps
+   {ring/ring-jetty-adapter {:mvn/version "1.11.0"} ; same as `:jetty` alias
+    binaryage/devtools   {:mvn/version "1.0.7"}
+    thheller/shadow-cljs {:mvn/version "2.26.2"}
+    io.github.clojure/tools.build
+    {:mvn/version "0.9.6"
+     :exclusions  [com.google.guava/guava ; Guava version conflict between tools.build and clojurescript.
+                   org.slf4j/slf4j-nop    ; clashes with app logger
+                   ]}}
    :jvm-opts
    ["-Xss2m" ; https://github.com/hyperfiddle/photon/issues/11
     "-Dclojure.tools.logging.factory=clojure.tools.logging.impl/slf4j-factory"
     "-Dlogback.configurationFile=src/logback.xml"
     "-XX:-OmitStackTraceInFastThrow" ;; RCF
     "-XX:+UnlockDiagnosticVMOptions"
-    "-XX:+DebugNonSafepoints"]
-   :exec-fn user/main
-   :exec-args {}}
+    "-XX:+DebugNonSafepoints"]}
+
+  :app ; process must be started with `XTDB_ENABLE_BYTEUTILS_SHA1=true clj -A:app:...`
+  {:extra-deps
+   {com.xtdb/xtdb-core {:mvn/version "1.24.3"}
+    com.xtdb/xtdb-rocksdb {:mvn/version "1.24.3"}}
+   :jvm-opts [;; the following option is required for JDK 16 and 17 (https://github.com/xtdb/xtdb/issues/1462)
+              "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED"]}
+
 
   :build
   ;; use `clj -X:build build-client`, NOT -T! build/app classpath contamination cannot be prevented
@@ -45,7 +52,10 @@
     io.github.clojure/tools.build {:mvn/version "0.9.6"
                                    :exclusions  [com.google.guava/guava ; Guava version conflict between tools.build and clojurescript.
                                                  org.slf4j/slf4j-nop    ; clashes with app logger
-                                                 ]}}}}
+                                                 ]}}}
+
+  :jetty ; jetty http server, default in :dev and :prod
+  {:extra-deps {ring/ring-jetty-adapter {:mvn/version "1.11.0"}}}}
  :jvm-opts ["-Dclojure.tools.logging.factory=clojure.tools.logging.impl/slf4j-factory"
             ;; the following option is required for JDK 16 and 17:
             ;; https://github.com/xtdb/xtdb/issues/1462

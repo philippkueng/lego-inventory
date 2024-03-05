@@ -1,12 +1,21 @@
-{:deps {:aliases [:dev]}
- :nrepl {:port 9001}
+{:nrepl {:port 9001}
+ :npm-deps {:install false}
  :builds
  {:dev
   {:target :browser
    :devtools {:watch-dir "resources/public" ; live reload CSS
-              :hud #{:errors :progress}
-              :ignore-warnings true} ; warnings don't prevent hot-reload
+              :loader-mode :default ; faster reload
+              :hud #{:errors :progress}}
    :output-dir "resources/public/js"
    :asset-path "/js"
-   :modules {:main {:entries [user]
-                    :init-fn user/start!}}}}}
+   :modules {:main {:entries [dev] :init-fn dev/start!}}
+   :build-hooks [(hyperfiddle.electric.shadow-cljs.hooks/reload-clj)
+                 (dev/pause-websocket-reconnect-while-compiling)
+                 ]}
+  :prod
+  {:target :browser
+   :output-dir "resources/public/js"
+   :asset-path "/js"
+   :module-hash-names true
+   :modules {:main {:entries [prod]
+                    :init-fn prod/start!}}}}}

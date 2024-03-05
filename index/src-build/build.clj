@@ -10,26 +10,26 @@
 (def electric-user-version (b/git-process {:git-args "describe --tags --long --always --dirty"}))
 
 (defn build-client
-  "build Electric app client, invoke with -X e.g.
+  "build Electric app client, invoke with -X e.g. 
 `clojure -X:build:prod:hello-fiddle build-client :hyperfiddle/domain hello-fiddle :debug true`
-Note: Electric shadow compilation requires application classpath to be available,
+Note: Electric shadow compilation requires application classpath to be available, 
 so do not use `clj -T`"
   ; No point in sheltering shadow from app classpath, shadow loads it anyway!
   [argmap] ; invoke with -X
   (let [{:keys [::hf/domain optimize debug verbose]
          :or {optimize true, debug false, verbose false}
          :as config}
-        (-> argmap
+        (-> argmap 
           (update ::hf/domain str) ; coerce, -X under bash evals as symbol unless shell quoted like '"'foo'"'
           (assoc :hyperfiddle.electric/user-version electric-user-version))]
     (b/delete {:path "resources/public/js"})
     (b/delete {:path "resources/electric-manifest.edn"})
-
+    
     ; bake domain and user-version into artifact, cljs and clj
     (b/write-file {:path "resources/electric-manifest.edn" :content config}) ; even used?
-
+    
     ; "java.lang.NoClassDefFoundError: com/google/common/collect/Streams" is fixed by
-    ; adding com.google.guava/guava {:mvn/version "31.1-jre"} to deps,
+    ; adding com.google.guava/guava {:mvn/version "31.1-jre"} to deps, 
     ; see https://hf-inc.slack.com/archives/C04TBSDFAM6/p1692636958361199
     (shadow-server/start!)
     (binding [hf/*hyperfiddle-user-ns* (symbol (str (name (check string? domain)) ".fiddles"))]
@@ -60,7 +60,7 @@ so do not use `clj -T`"
   (when-not skip-client
     (build-client {::hf/domain (check some? domain)
                    :optimize optimize, :debug debug, :verbose verbose}))
-
+  
   (b/copy-dir {:target-dir class-dir :src-dirs ["src-contrib" "src-prod" "resources"]})
   (b/copy-dir {:target-dir (str class-dir "/" (domain->dir domain)) :src-dirs [(str "src/" (domain->dir domain))]})
   (let [jar-name (or (some-> jar-name str) ; override for Dockerfile builds to avoid needing to reconstruct the name
@@ -72,7 +72,7 @@ so do not use `clj -T`"
              :basis     (b/create-basis {:project "deps.edn" :aliases aliases})})
     (log/info jar-name)))
 
-; clj -A:prod:hello-fiddle -M -e ::ok
-; clj -A:build:prod:hello-fiddle -M -e ::ok
+; clj -A:prod:hello-fiddle -M -e ::ok 
+; clj -A:build:prod:hello-fiddle -M -e ::ok 
 ; clj -X:build:prod:hello-fiddle uberjar :hyperfiddle/domain hello-fiddle :debug true
 ; java -cp target/electricfiddle-hello-fiddle-77ebb18-dirty.jar clojure.main -m prod

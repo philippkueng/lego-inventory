@@ -370,10 +370,10 @@
             (ui/button (e/fn [] (goto-page! :rebrickable-parts-by-part-num nil)) (dom/text "Lego Parts (by part number)"))
      )))
 
-(e/defn Todo-list []
+(e/defn Todo-list [!xtdb]
   (e/server
-   (binding [!xtdb user/!xtdb
-             db (new (db/latest-db> user/!xtdb))]
+   (binding [app.todo-list/!xtdb !xtdb
+             db (new (db/latest-db> !xtdb))]
      (e/client
       (dom/link (dom/props {:rel :stylesheet :href "/todo-list.css"}))
       (let [state (e/watch !client-state)]
