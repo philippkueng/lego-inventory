@@ -23,18 +23,36 @@
 ;  [{:keys [url id] :as photo}]
 ;  (some-> (fetch-photo! url) (io/copy (io/file "photos" id ".jpg"))))
 
+;; looking for hostname esp32-31a204
+(def camera-ip "192.168.0.30")
 
-(defn take-picture!
-  "Instructs the controller to take a new picture"
-  []
-  (:body (client/get "http://192.168.0.27/capture")))
+;(defn take-picture!
+;  "Instructs the controller to take a new picture"
+;  []
+;  (:body (client/get "http://192.168.0.27/capture")))
+;
+;(defn fetch-photo!
+;  []
+;  (some-> (:body (client/get
+;                   "http://192.168.0.27/saved-photo"
+;                   {:as :stream}))
+;    (io/copy (io/file "photo.jpg"))))
 
+;; flash the ESP-CAM code into an AI Thinker module
 (defn fetch-photo!
   []
   (some-> (:body (client/get
-                   "http://192.168.0.27/saved-photo"
+                   (str "http://" camera-ip "/capture?_cb=" (rand-int 1000000))
                    {:as :stream}))
     (io/copy (io/file "photo.jpg"))))
+
+
+(comment
+  ;; set LED intensity
+  (:body (client/get (str "http://" camera-ip "/control?var=led_intensity&val=219")))
+
+  (fetch-photo!)
+  )
 
 (comment
   ;; download the image from an ESP32-CAM
