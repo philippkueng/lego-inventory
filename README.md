@@ -16,4 +16,8 @@ The bare mininmum of C++ code for an ESP32-Wrover to allow for controlling servo
 
 **orchestrator**
 
-The orchestrator talks to the controllers to control servos and stepper motors to capture pictures of parts going past and select in which buckets they'll be sorted. 
+The orchestrator talks to the controllers to control servos and stepper motors to capture pictures of parts going past and select in which buckets they'll be sorted.
+
+**camera**
+
+Documentation on the cameras used for the piece detection
