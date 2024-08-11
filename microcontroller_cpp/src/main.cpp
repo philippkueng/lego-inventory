@@ -6,6 +6,7 @@
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include <ESP32Servo.h>
+#include <ElegantOTA.h>
 
 AsyncWebServer server(80);
 
@@ -18,16 +19,18 @@ constexpr int ONBOARD_LED = 5;
 constexpr int PUL = 25; //define Pulse pin
 constexpr int DIR = 26; //define Direction pin
 constexpr int ENA = 27; //define Enable Pin
-bool steppeMotorOn = false;
+bool stepperMotorOn = false;
 long stepperMotorPreviousMicroseconds = 0;        // will store last time the stepper motor was updated
 long stepperMotorInterval = 50; // microseconds
 
-constexpr int SERVO_PIN = 13; // ESP32 pin GPIO13 connected to servo motor
+constexpr int SERVO_PIN = 13; // ESP32 pin GPIO13 connected to servo motor - the yellow cable
+bool servoOn = false;
+long servoPreviousMicroseconds = 0;
+long servoInterval = 15 * 1000; // 15ms
+int servoPosition = 0;
+enum ServoDirection { up, down };
+ServoDirection servoDirection = up;
 Servo servoMotor;
-int PUL = 25; //define Pulse pin
-int DIR = 26; //define Direction pin
-int ENA = 27; //define Enable Pin
-bool STEPPER_MOTOR_ON = false;
 
 void setup() {
   Serial.begin(115200);
@@ -41,7 +44,7 @@ void setup() {
   pinMode(DIR, OUTPUT);
   pinMode(ENA, OUTPUT);
   digitalWrite(PUL, LOW);
-  digitalWrite(DIR, LOW);
+  digitalWrite(DIR, HIGH);
   digitalWrite(ENA, LOW);
 
   servoMotor.attach(SERVO_PIN);  // attaches the servo on ESP32 pin
@@ -79,7 +82,8 @@ void setup() {
     json["message"] = "started";
     digitalWrite(ONBOARD_LED, LOW);
     Serial.println("turned LED on");
-    steppeMotorOn = true;
+    stepperMotorOn = true;
+    servoOn = true;
     serializeJson(json, *response);
     request->send(response);
   });
@@ -91,10 +95,13 @@ void setup() {
     json["message"] = "stopped";
     digitalWrite(ONBOARD_LED, HIGH);
     Serial.println("turned LED off");
-    steppeMotorOn = false;
+    stepperMotorOn = false;
+    servoOn = false;
     serializeJson(json, *response);
     request->send(response);
   });
+
+  ElegantOTA.begin(&server);
 
   // Start webserver
   server.begin();
@@ -102,13 +109,56 @@ void setup() {
 
 void loop() {
   unsigned long currentMicroseconds = micros();
-  if (steppeMotorOn == true && (currentMicroseconds - stepperMotorPreviousMicroseconds) > stepperMotorInterval) {
+
+  // stepper motor
+  if (stepperMotorOn == true && (currentMicroseconds - stepperMotorPreviousMicroseconds) > stepperMotorInterval) {
     // save the last time we triggered
     stepperMotorPreviousMicroseconds = currentMicroseconds;
 
     // trigger the stepper motor
     digitalWrite(PUL, !digitalRead(PUL));
   }
+
+  // servo
+  if (servoOn == true && (currentMicroseconds - servoPreviousMicroseconds) > servoInterval) {
+    // save the last time we triggered
+    servoPreviousMicroseconds = currentMicroseconds;
+
+    // trigger the servo
+    if (servoDirection == up) {
+      // moving up
+      if (servoPosition <= 180) {
+        // continue sweeping
+        servoPosition = servoPosition + 1;
+        servoMotor.write(servoPosition);
+      } else {
+        // we've reached the end and need to switch direction
+        servoDirection = down;
+      }
+    } else {
+      // moving down
+      if (servoPosition >= 0) {
+        servoPosition = servoPosition - 1;
+        servoMotor.write(servoPosition);
+      } else {
+        servoDirection = up;
+      }
+    }
+  }
+  // // rotates from 0 degrees to 180 degrees
+  // for (int pos = 0; pos <= 180; pos += 1) {
+  //   // in steps of 1 degree
+  //   servoMotor.write(pos);
+  //   delay(15); // waits 15ms to reach the position
+  // }
+  //
+  // // rotates from 180 degrees to 0 degrees
+  // for (int pos = 180; pos >= 0; pos -= 1) {
+  //   servoMotor.write(pos);
+  //   delay(15); // waits 15ms to reach the position
+  // }
+
+  ElegantOTA.loop();
 }
 
 // put function definitions here:
