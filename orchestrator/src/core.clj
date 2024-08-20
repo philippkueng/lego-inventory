@@ -24,7 +24,8 @@
 ;  (some-> (fetch-photo! url) (io/copy (io/file "photos" id ".jpg"))))
 
 ;; looking for hostname esp32-31a204
-(def camera-ip "192.168.0.30")
+#_(def camera-ip "192.168.0.28")
+(def camera-ip "esp32-3121b0")
 
 ;(defn take-picture!
 ;  "Instructs the controller to take a new picture"
@@ -39,19 +40,32 @@
 ;    (io/copy (io/file "photo.jpg"))))
 
 ;; flash the ESP-CAM code into an AI Thinker module
+(defn enable-light! [camera-ip]
+  (:body (client/get (str "http://" camera-ip "/control?var=lamp&val=100"))))
+
+(defn disable-light! [camera-ip]
+  (:body (client/get (str "http://" camera-ip "/control?var=lamp&val=0"))))
+
+
+
 (defn fetch-photo!
-  []
+  [camera-ip]
+  (enable-light! camera-ip)
+  (Thread/sleep 1000)
   (some-> (:body (client/get
                    (str "http://" camera-ip "/capture?_cb=" (rand-int 1000000))
                    {:as :stream}))
-    (io/copy (io/file "photo.jpg"))))
+    (io/copy (io/file "photo.jpg")))
+  (Thread/sleep 1000)
+  (disable-light! camera-ip))
 
 
 (comment
   ;; set LED intensity
-  (:body (client/get (str "http://" camera-ip "/control?var=led_intensity&val=219")))
+  (:body (client/get (str "http://" camera-ip "/control?var=lamp&val=100")))
+  (:body (client/get (str "http://" camera-ip "/control?var=lamp&val=0")))
 
-  (fetch-photo!)
+  (fetch-photo! camera-ip)
   )
 
 (comment
@@ -81,7 +95,9 @@
 
   )
 
-(def controller-ip "192.168.0.250")
+#_(def controller-ip "192.168.0.251")
+(def controller-ip "esp32-5d8488")
+;; esp32-5d8488
 (defn start-stepper-motor! []
   (->> (client/get (str "http://" controller-ip "/api/start") {:as :json})
     :body))
@@ -98,13 +114,20 @@
   (->> (client/get "http://192.168.0.250/api/stop" {:as :json})
     :body)
 
+  (start-stepper-motor!)
+  (stop-stepper-motor!)
+
+  (do (start-stepper-motor!)
+      (Thread/sleep 30000)
+      (stop-stepper-motor!))
+
   (doall
-    (doseq [i (range 10)]
+    (doseq [i (range 50)]
       (do
         (start-stepper-motor!)
-        (Thread/sleep 2000)
+        (Thread/sleep 400)
         (stop-stepper-motor!)
-        (Thread/sleep 2000))))
+        (Thread/sleep 800))))
 
   )
 
