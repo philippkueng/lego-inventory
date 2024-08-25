@@ -23,14 +23,14 @@ bool stepperMotorOn = false;
 long stepperMotorPreviousMicroseconds = 0;        // will store last time the stepper motor was updated
 long stepperMotorInterval = 50; // microseconds
 
-constexpr int SERVO_PIN = 13; // ESP32 pin GPIO13 connected to servo motor - the yellow cable
-bool servoOn = false;
-long servoPreviousMicroseconds = 0;
-long servoInterval = 15 * 1000; // 15ms
-int servoPosition = 0;
-enum ServoDirection { up, down };
-ServoDirection servoDirection = up;
-Servo servoMotor;
+constexpr int FEEDER_SERVO_PIN = 13; // ESP32 pin GPIO13 connected to servo motor - the yellow cable
+bool feederServoOn = false;
+long feederServoPreviousMicroseconds = 0;
+long feederServoInterval = 15 * 1000; // 15ms
+int feederServoPosition = 0;
+enum FeederServoDirection { up, down };
+FeederServoDirection feederServoDirection = up;
+Servo feederServoMotor;
 
 void setup() {
   Serial.begin(115200);
@@ -47,7 +47,7 @@ void setup() {
   digitalWrite(DIR, HIGH);
   digitalWrite(ENA, LOW);
 
-  servoMotor.attach(SERVO_PIN);  // attaches the servo on ESP32 pin
+  feederServoMotor.attach(FEEDER_SERVO_PIN);  // attaches the servo on ESP32 pin
 
   // Connect Wifi, restart if not connecting
   // https://techoverflow.net/2021/01/21/how-to-fix-esp32-not-connecting-to-the-wifi-network/
@@ -83,7 +83,7 @@ void setup() {
     digitalWrite(ONBOARD_LED, LOW);
     Serial.println("turned LED on");
     stepperMotorOn = true;
-    servoOn = true;
+    feederServoOn = true;
     serializeJson(json, *response);
     request->send(response);
   });
@@ -96,7 +96,7 @@ void setup() {
     digitalWrite(ONBOARD_LED, HIGH);
     Serial.println("turned LED off");
     stepperMotorOn = false;
-    servoOn = false;
+    feederServoOn = false;
     serializeJson(json, *response);
     request->send(response);
   });
@@ -120,41 +120,41 @@ void loop() {
   }
 
   // servo
-  if (servoOn == true && (currentMicroseconds - servoPreviousMicroseconds) > servoInterval) {
+  if (feederServoOn == true && (currentMicroseconds - feederServoPreviousMicroseconds) > feederServoInterval) {
     // save the last time we triggered
-    servoPreviousMicroseconds = currentMicroseconds;
+    feederServoPreviousMicroseconds = currentMicroseconds;
 
     // trigger the servo
-    if (servoDirection == up) {
+    if (feederServoDirection == up) {
       // moving up
-      if (servoPosition <= 180) {
+      if (feederServoPosition <= 180) {
         // continue sweeping
-        servoPosition = servoPosition + 1;
-        servoMotor.write(servoPosition);
+        feederServoPosition = feederServoPosition + 1;
+        feederServoMotor.write(feederServoPosition);
       } else {
         // we've reached the end and need to switch direction
-        servoDirection = down;
+        feederServoDirection = down;
       }
     } else {
       // moving down
-      if (servoPosition >= 0) {
-        servoPosition = servoPosition - 1;
-        servoMotor.write(servoPosition);
+      if (feederServoPosition >= 0) {
+        feederServoPosition = feederServoPosition - 1;
+        feederServoMotor.write(feederServoPosition);
       } else {
-        servoDirection = up;
+        feederServoDirection = up;
       }
     }
   }
   // // rotates from 0 degrees to 180 degrees
   // for (int pos = 0; pos <= 180; pos += 1) {
   //   // in steps of 1 degree
-  //   servoMotor.write(pos);
+  //   feederServoMotor.write(pos);
   //   delay(15); // waits 15ms to reach the position
   // }
   //
   // // rotates from 180 degrees to 0 degrees
   // for (int pos = 180; pos >= 0; pos -= 1) {
-  //   servoMotor.write(pos);
+  //   feederServoMotor.write(pos);
   //   delay(15); // waits 15ms to reach the position
   // }
 
