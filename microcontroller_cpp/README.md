@@ -1,0 +1,1 @@
+Use Platform.IO to create a build, then connect to the controller http://esp32-5d8488/update and finally upload the file `/.pio/build/lolin_d32_pro/firmware.bin`
