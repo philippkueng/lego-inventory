@@ -122,7 +122,7 @@
       (stop-stepper-motor!))
 
   (doall
-    (doseq [i (range 50)]
+    (doseq [i (range 100)]
       (do
         (start-stepper-motor!)
         (Thread/sleep 400)
@@ -131,3 +131,108 @@
 
   )
 
+
+(def slot-count 10)
+
+(defn set-sorter-slot!
+  "The angle the sorter can move without causing damage is 160 degrees, meaning from 10-170
+   The slots are meant to be starting with 1"
+  [slot-number]
+  (let [new-angle (->> (/ 160 slot-count)
+                    (* slot-number)
+                    (+ 10))]
+    (->> (client/get (format
+                       "http://192.168.0.250/api/sorter_servo?angle=%d"
+                       new-angle) {:as :json})
+      :body)))
+
+(comment
+
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=90" {:as :json})
+    :body)
+
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=0" {:as :json})
+    :body)
+
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=180" {:as :json})
+    :body)
+
+  ;; iterate through all the slots
+  (doseq [slot (range slot-count)]
+    (set-sorter-slot! slot)
+    (Thread/sleep 500))
+
+  (set-sorter-slot! 1)
+  (set-sorter-slot! 2)
+  (set-sorter-slot! 3)
+  (set-sorter-slot! 5)
+  (set-sorter-slot! 8)
+  (set-sorter-slot! 9)
+  (set-sorter-slot! 10)
+
+
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=10" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=20" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=30" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=40" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=50" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=60" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=70" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=80" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=90" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=100" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=110" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=120" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=130" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=140" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=150" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=160" {:as :json})
+    :body)
+  (->> (client/get "http://192.168.0.250/api/sorter_servo?angle=170" {:as :json})
+    :body)
+
+  )
+
+(defn feeder-up! []
+  (->> (client/get "http://192.168.0.250/api/feeder?angle=180" {:as :json})
+    :body)
+  (Thread/sleep 800))
+
+(defn feeder-down! []
+  (->> (client/get "http://192.168.0.250/api/feeder?angle=0" {:as :json})
+    :body)
+  (Thread/sleep 800))
+
+(comment
+  ;; feeder
+  (->> (client/get "http://192.168.0.250/api/feeder?angle=90" {:as :json})
+    :body)
+
+  (->> (client/get "http://192.168.0.250/api/feeder?angle=0" {:as :json})
+    :body)
+
+  (->> (client/get "http://192.168.0.250/api/feeder?angle=180" {:as :json})
+    :body)
+
+  ;; feed for 10 runs
+  (doseq [i (range 10)]
+    (feeder-down!)
+    (feeder-up!))
+
+
+  )
