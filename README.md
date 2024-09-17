@@ -21,3 +21,20 @@ The orchestrator talks to the controllers to control servos and stepper motors t
 **camera**
 
 Documentation on the cameras used for the piece detection
+
+
+## Shell commands
+
+Record images from the main camera and store them into the `photos` directory
+
+```bash
+cd orchestrator
+clj -m record
+```
+
+Turn the photos into a video
+
+```bash
+cd orchestrator/
+cat photos/*.jpg | ffmpeg -framerate 6 -f image2pipe -i - -c:v libx264 -r 30 -pix_fmt yuv420p output.mp4
+```
