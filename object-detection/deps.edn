@@ -1,0 +1,2 @@
+{:deps {org.scicloj/clay {:mvn/version "2-beta25"}
+        clj-python/libpython-clj {:mvn/version "2.025"}}}
