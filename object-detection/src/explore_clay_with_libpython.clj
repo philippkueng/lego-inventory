@@ -5,7 +5,8 @@
                                            ->jvm] :as py]
             [tech.v3.datatype :as dtype]
             [plot]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [dbscan-clj.core :as dbscan])
   (:import [javax.imageio ImageIO]))
 
 ^{:kindly/hide-code true}
@@ -14,7 +15,7 @@
                :live-reload true})
   )
 
-
+(require-python '[builtins])
 (require-python '[cv2 :bind-ns true])
 (require-python '[matplotlib.pyplot :as pyplot :bind-ns true])
 
@@ -52,8 +53,7 @@
 ;; # Feature detection
 
 ;; ## Using the `goodFeaturesToTrack` function.
-(def max-corners 23)
-(def max-trackbar 100)
+(def max-corners 50)
 (def quality-level 0.01)
 (def min-distance 10)
 (def block-size 3)
@@ -77,29 +77,7 @@
   (->jvm)
   (map first))
 
-;(defn draw-circle [image center radius color thickness]
-;  (py/call-attr cv2 "circle" image center radius color thickness))
-
 ;; ## Overlay the corners onto the image & display the image
-(let [image (cv2/imread "images/2024_08_20_room_light.jpg")
-      corners (cv2/goodFeaturesToTrack
-                (cv2/cvtColor image
-                  cv2/COLOR_BGR2GRAY)
-                max-corners
-                quality-level
-                min-distance
-                nil
-                :blockSize block-size
-                :gradientSize gradient-size
-                :useHarrisDetector use-harris-detector?
-                :k k)
-      image-copy (numpy/copy image)]
-  (doall
-    (for [[x y] (map first (->jvm corners))]
-      (cv2/circle image-copy [(int x) (int y)] 10 [0 255 0] 2)))
-  (cv2/imwrite "new_image.jpg" image-copy))
-
-
 (let [image (cv2/imread "images/2024_08_20_room_light.jpg")
       corners (cv2/goodFeaturesToTrack
                 (cv2/cvtColor image
@@ -119,6 +97,93 @@
   (cv2/imwrite "new_image.jpg" image-copy)
   (ImageIO/read (io/file "new_image.jpg")))
 
+;; ## Crop the image so that we only see the parts on the conveyor belt without any of the machine itself.
+;; I'll be using the instructions from the libpython-clj docs to slice the array of the image: https://clj-python.github.io/libpython-clj/slicing.html
+(let [source-image (cv2/imread "images/2024_08_20_room_light.jpg")
+      image (py/get-item
+              source-image
+              [
+               (builtins/slice 150 500)                     ;; top down
+               (builtins/slice 150 600)                     ;; left right
+               ])
+      corners (cv2/goodFeaturesToTrack
+                (cv2/cvtColor image
+                  cv2/COLOR_BGR2GRAY)
+                max-corners
+                quality-level
+                min-distance
+                nil
+                :blockSize block-size
+                :gradientSize gradient-size
+                :useHarrisDetector use-harris-detector?
+                :k k)
+      image-copy (numpy/copy image)]
+  (doall
+    (for [[x y] (map first (->jvm corners))]
+      (cv2/circle image-copy [(int x) (int y)] 10 [0 255 0] 2)))
+  (cv2/imwrite "new_image.jpg" image-copy)
+  (ImageIO/read (io/file "new_image.jpg")))
+
+(comment
+  (count (->jvm (py/get-item
+                  (cv2/imread "images/2024_08_20_room_light.jpg")
+                  [(builtins/slice 100 400) (builtins/slice 100 200)])))
+
+
+  )
+
+
+;; ## Use the DBSCAN algorithm to find clusters within the coordinates
+;; Those clusters should correlate to the parts seen on the conveyor belt
+;; Using this library: https://github.com/zalky/dbscan-clj
+(let [raw-points (->> (cv2/goodFeaturesToTrack
+                        (cv2/cvtColor (cv2/imread "images/2024_08_20_room_light.jpg")
+                          cv2/COLOR_BGR2GRAY)
+                        max-corners
+                        quality-level
+                        min-distance
+                        nil
+                        :blockSize block-size
+                        :gradientSize gradient-size
+                        :useHarrisDetector use-harris-detector?
+                        :k k)
+                   (->jvm)
+                   (map first)
+                   (map (fn [[x y]]
+                          {:kr.coord/x (int x)
+                           :kr.coord/y (int y)})))
+      points (map merge raw-points
+               (->> (range (count raw-points))
+                 (map (fn [p] {:system/id p}))))]
+  (dbscan/cluster points {:attrs {:id :system/id
+                                  :x :kr.coord/x
+                                  :y :kr.coord/y}
+                          :min-points 2
+                          :epsilon 20})
+  )
+
+(comment
+
+  (count (->jvm (cv2/imread "images/2024_08_20_room_light.jpg")))
+
+  (py/get-item
+    (cv2/imread "images/2024_08_20_room_light.jpg")
+    (py/slice [100 400])
+    (py/slice [100 200]))
+
+  (count (->jvm (py/get-item
+                  (cv2/imread "images/2024_08_20_room_light.jpg")
+                  [(builtins/slice 100 400) (builtins/slice 100 200)])))
+
+
+  (py/->py-tuple [100 400])
+
+  ;(py/get-item ary [(builtins/slice 1 nil) (builtins/slice 1 nil)])
+
+  ;(def src (py/get-item src-raw (py/slice 200 1000) (py/slice 300 1200)))
+
+  )
+
 
 (comment
   ;; let's get the corners
@@ -133,6 +198,9 @@
     :gradientSize gradient-size
     :useHarrisDetector use-harris-detector?
     :k k)
+
+  ;; # Draw the polygon
+  ;cv2.polylines(img, [points], isClosed=True, color=(0, 255, 0), thickness=2)
 
   (meta cv2/goodFeaturesToTrack)
 
