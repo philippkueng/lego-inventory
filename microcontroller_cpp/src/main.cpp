@@ -28,7 +28,7 @@ enum ServoDirection { up, down };
 constexpr int FEEDER_SERVO_PIN = 13; // ESP32 pin GPIO13 connected to servo motor - the yellow cable
 bool feederServoOn = false;
 long feederServoPreviousMicroseconds = 0;
-long feederServoInterval = 15 * 1000; // 15ms
+long feederServoInterval = 10 * 1000; // 10ms
 int feederServoPosition = 0;
 ServoDirection feederServoDirection = up;
 Servo feederServoMotor;
@@ -36,7 +36,7 @@ Servo feederServoMotor;
 constexpr int SORTER_SERVO_PIN = 15; // ESP32 pin GPIO15 connected to servo motor - the yellow cable
 bool sorterServoOn = false;
 long sorterServoPreviousMicroseconds = 0;
-long sorterServoInterval = 15 * 1000; // 15ms
+long sorterServoInterval = 10 * 1000; // 10ms
 int sorterServoPosition = 0;
 ServoDirection sorterServoDirection = up;
 Servo sorterServoMotor;
@@ -114,6 +114,56 @@ void setup() {
     request->send(response);
   });
 
+  server.on("/api/feeder", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    DynamicJsonDocument json(1024);
+    json["status"] = "ok";
+
+    if(request->hasParam("angle")) {
+      const AsyncWebParameter* p = request->getParam("angle");
+      int newAngle = atoi(p->value().c_str());
+      if (newAngle >= 0 && newAngle <= 180) {
+        digitalWrite(ONBOARD_LED, HIGH);
+        feederServoMotor.write(newAngle);
+        json["message"] = newAngle;
+      } else {
+        // invalid angle
+        digitalWrite(ONBOARD_LED, LOW);
+        json["message"] = p->value().c_str();
+      }
+    } else {
+      json["message"] = "no angle param found as part of the request";
+    }
+
+    serializeJson(json, *response);
+    request->send(response);
+  });
+
+  server.on("/api/sorter_servo", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    DynamicJsonDocument json(1024);
+    json["status"] = "ok";
+
+    if(request->hasParam("angle")) {
+      const AsyncWebParameter* p = request->getParam("angle");
+      int newAngle = atoi(p->value().c_str());
+      if (newAngle >= 0 && newAngle <= 180) {
+        digitalWrite(ONBOARD_LED, HIGH);
+        sorterServoMotor.write(newAngle);
+        json["message"] = newAngle;
+      } else {
+        // invalid angle
+        digitalWrite(ONBOARD_LED, LOW);
+        json["message"] = p->value().c_str();
+      }
+    } else {
+      json["message"] = "no angle param found as part of the request";
+    }
+
+    serializeJson(json, *response);
+    request->send(response);
+  });
+
   ElegantOTA.begin(&server);
 
   // Start webserver
@@ -159,44 +209,31 @@ void loop() {
     }
   }
 
-  // sorter servo
-  if (sorterServoOn == true && (currentMicroseconds - sorterServoPreviousMicroseconds) > sorterServoInterval) {
-    // save the last time we triggered
-    sorterServoPreviousMicroseconds = currentMicroseconds;
+  // // sorter servo
+  // if (sorterServoOn == true && (currentMicroseconds - sorterServoPreviousMicroseconds) > sorterServoInterval) {
+  //   // save the last time we triggered
+  //   sorterServoPreviousMicroseconds = currentMicroseconds;
 
-    // trigger the servo
-    if (sorterServoDirection == up) {
-      // moving up
-      if (sorterServoPosition <= 180) {
-        // continue sweeping
-        sorterServoPosition = sorterServoPosition + 1;
-        sorterServoMotor.write(sorterServoPosition);
-      } else {
-        // we've reached the end and need to switch direction
-        sorterServoDirection = down;
-      }
-    } else {
-      // moving down
-      if (sorterServoPosition >= 0) {
-        sorterServoPosition = sorterServoPosition - 1;
-        sorterServoMotor.write(sorterServoPosition);
-      } else {
-        sorterServoDirection = up;
-      }
-    }
-  }
-
-  // // rotates from 0 degrees to 180 degrees
-  // for (int pos = 0; pos <= 180; pos += 1) {
-  //   // in steps of 1 degree
-  //   feederServoMotor.write(pos);
-  //   delay(15); // waits 15ms to reach the position
-  // }
-  //
-  // // rotates from 180 degrees to 0 degrees
-  // for (int pos = 180; pos >= 0; pos -= 1) {
-  //   feederServoMotor.write(pos);
-  //   delay(15); // waits 15ms to reach the position
+  //   // trigger the servo
+  //   if (sorterServoDirection == up) {
+  //     // moving up
+  //     if (sorterServoPosition <= 180) {
+  //       // continue sweeping
+  //       sorterServoPosition = sorterServoPosition + 1;
+  //       sorterServoMotor.write(sorterServoPosition);
+  //     } else {
+  //       // we've reached the end and need to switch direction
+  //       sorterServoDirection = down;
+  //     }
+  //   } else {
+  //     // moving down
+  //     if (sorterServoPosition >= 0) {
+  //       sorterServoPosition = sorterServoPosition - 1;
+  //       sorterServoMotor.write(sorterServoPosition);
+  //     } else {
+  //       sorterServoDirection = up;
+  //     }
+  //   }
   // }
 
   ElegantOTA.loop();
