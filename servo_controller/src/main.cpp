@@ -62,7 +62,7 @@ void setup() {
 
   // Connect Wifi, restart if not connecting
   // https://techoverflow.net/2021/01/21/how-to-fix-esp32-not-connecting-to-the-wifi-network/
-  WiFi.begin("network-name", "network-password");
+  WiFi.begin("2000-net", "yac5Ic7fIb8E");
   uint32_t notConnectedCounter = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(100);
