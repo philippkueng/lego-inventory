@@ -82,6 +82,8 @@ void setup() {
       json["status"] = "ok";
       json["ssid"] = WiFi.SSID();
       json["ip"] = WiFi.localIP().toString();
+      json["hostname"] = WiFi.getHostname();
+      json["version"] = "1.0.3";
       serializeJson(json, *response);
       request->send(response);
   });

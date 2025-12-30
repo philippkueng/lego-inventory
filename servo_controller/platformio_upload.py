@@ -38,14 +38,21 @@ def on_upload(source, target, env):
     upload_url_compatibility = env.GetProjectOption('custom_upload_url')
     upload_url = upload_url_compatibility.replace("/update", "")
 
+    print(f"Upload URL from config: {upload_url_compatibility}")
+    print(f"Base URL: {upload_url}")
+    print(f"Firmware path: {firmware_path}")
+
     with open(firmware_path, 'rb') as firmware:
         md5 = hashlib.md5(firmware.read()).hexdigest()
 
         parsed_url = urlparse(upload_url)
         host_ip = parsed_url.netloc
 
-        # Führe die GET-Anfrage aus
-        start_url = f"{upload_url}/ota/start?mode=fr&hash={md5}"
+        is_spiffs = source[0].name == "spiffs.bin"
+        file_type = "fs" if is_spiffs else "fr"
+
+        # execute GET request
+        start_url = f"{upload_url}/ota/start?mode={file_type}&hash={md5}"
 
         start_headers = {
             'Host': host_ip,
@@ -58,8 +65,11 @@ def on_upload(source, target, env):
             }
         
         try:
-            checkAuthResponse = requests.get(f"{upload_url_compatibility}/update")
+            print(f"Checking authentication at: {upload_url_compatibility}/update")
+            checkAuthResponse = requests.get(f"{upload_url_compatibility}/update", timeout=10)
+            print(f"Auth check response: {checkAuthResponse.status_code}")
         except Exception as e:
+            print(f"Error checking auth: {repr(e)}")
             return 'Error checking auth: ' + repr(e)
         
         if checkAuthResponse.status_code == 401:
