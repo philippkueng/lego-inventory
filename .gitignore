@@ -28,3 +28,6 @@ java/.project
 /*/.shadow-cljs/
 /*/.clj-kondo/
 /.idea/
+/.clj-kondo
+/orchestrator/photos/*.jpg
+/orchestrator/*.mp4
