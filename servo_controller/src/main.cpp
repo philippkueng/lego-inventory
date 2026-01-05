@@ -83,7 +83,7 @@ void setup() {
       json["ssid"] = WiFi.SSID();
       json["ip"] = WiFi.localIP().toString();
       json["hostname"] = WiFi.getHostname();
-      json["version"] = "1.0.3";
+      json["version"] = "1.0.5";
       serializeJson(json, *response);
       request->send(response);
   });
@@ -167,6 +167,7 @@ void setup() {
   });
 
   ElegantOTA.begin(&server);
+  ElegantOTA.setAutoReboot(true);
 
   // Start webserver
   server.begin();
