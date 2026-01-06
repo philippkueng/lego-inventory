@@ -1,2 +1,14 @@
 {:deps {clj-http/clj-http {:mvn/version "3.12.3"}
-        cheshire/cheshire {:mvn/version "5.12.0"}}}
+        cheshire/cheshire {:mvn/version "5.12.0"}
+        org.jmdns/jmdns {:mvn/version "3.5.9"}
+        origami/origami {:mvn/version "4.12.0"}
+#_{:git/url "https://github.com/hellonico/origami" :git/sha "978640dc2160082f19f6bdec515bfacfe7df1c3b"}
+        orgami/origami-dnn {:git/url "https://github.com/hellonico/origami-dnn" :git/sha "f6b356208803d41768a966785584daa4d7c25b38"}
+        org.bytedeco/javacv-platform {:mvn/version "1.5.12"}
+        io.github.HumbleUI/humbleui {:git/url "https://github.com/HumbleUI/HumbleUI"
+                                     :git/sha "89d7ab0fffdd2f013f066a3bd766f0a7254412dc"}
+
+        }
+ :mvn/repos {
+             ;"vendredi" {:url "https://repository.hellonico.info/repository/hellonico/"}
+             }}
